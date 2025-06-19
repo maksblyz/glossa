@@ -1,34 +1,27 @@
 import { db } from "@/db"
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server"
 import { notFound, redirect } from "next/navigation"
+import Header from '@/components/Header'
+import { PDFStub } from "@/components/PDFStub"
+import { KindeUser } from "@kinde-oss/kinde-auth-nextjs"
 
-interface PageProps {
-    params: {
-        fileid: string
-    }
+export default async function Page({ params }: { params: { fileid: string } }) {
+    const { fileid } = params
+    const { getUser } = getKindeServerSession()
+    const rawUser = await getUser()
+    const user = rawUser as KindeUser | null
+
+    if(!user?.id) redirect(`/auth-callback?origin=dashboard/${fileid}`)
+
+    // const file = await db.file.findFirst({
+    //     where: { id: fileid, userId: user!.id }
+    // })
+    // if(!file) notFound()
+    
+    return (
+        <>
+        <Header user={user} />
+        <PDFStub/>
+        </>
+    )
 }
-
-const Page =  async ({params}: PageProps) => {
-    // retrieve the file id
-    const {fileid} = params
-    // make database call
-    const {getUser} = getKindeServerSession()
-    const user = await getUser()
-
-    if(!user || !user.id) redirect(`/auth-callback?origin=dashboard/${fileid}`)
-
-    // make database call
-
-    const file = await db.file.findFirst({
-        where: {
-            id: fileid,
-            userId: user.id,
-        },
-    })
-
-    if(!file) notFound()
-
-    return (<div>{fileid}</div>)
-}
-
-export default Page
