@@ -7,13 +7,12 @@ import { DialogContent, Dialog, DialogTrigger, DialogHeader, DialogTitle} from "
 import Dropzone from "react-dropzone"
 import { Cloud, File } from "lucide-react"
 import { Progress } from "./ui/progress"
-import { ProgressIndicator } from "@radix-ui/react-progress"
-import { setDefaultHighWaterMark } from "stream"
 
+import { upload } from "@vercel/blob/client"
 
 const UploadDropzone = () => {
 
-    const [isUploading, setIsUploading] = useState<boolean>(true)
+    const [isUploading, setIsUploading] = useState<boolean>(false)
     const [uploadProgress, setUploadProgress] = useState<number>(0)
 
     const startSimulatedProgress = () => {
@@ -32,16 +31,27 @@ const UploadDropzone = () => {
         return interval
     }
 
-    return <Dropzone multiple = {false} onDrop={ async (acceptedFile) => { 
-        setIsUploading(true)
-
+    return <Dropzone multiple = {false} onDrop={ async (accepted) => { 
+        const file = accepted[0]
+        setIsUploading(true);
         const progressInterval = startSimulatedProgress()
 
         //handle file uploading
-        
-
-        clearInterval(progressInterval)
-        setUploadProgress(100)
+        try {
+            const blob = await upload(file.name, file, {
+                access: 'public',
+                handleUploadUrl: '/api/blob/upload',
+                onUploadProgress: (p) => setUploadProgress(p.percentage),
+            });
+            clearInterval(progressInterval)
+            setUploadProgress(100)
+            // call api/process?url=blob.url
+        } catch (e) {
+            console.error(e)
+            clearInterval(progressInterval)
+        } finally {
+            setIsUploading(false)
+        }
     }}>
         {({getRootProps, getInputProps, acceptedFiles}) =>  (
             <div 
