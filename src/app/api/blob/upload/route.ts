@@ -1,5 +1,8 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse } from 'next/server'
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export async function POST(req: Request) {
     const body = (await req.json()) as HandleUploadBody;
@@ -17,7 +20,7 @@ export async function POST(req: Request) {
 
         //called once browser PUTS file
         onUploadCompleted: async ({ blob }) => {
-            console.log('new blob:', blob.url);
+            await redis.lpush('pdf_jobs', JSON.stringify({url: blob.url, name: blob.pathname}))
         },
     }).then(json => NextResponse.json(json));
 }
