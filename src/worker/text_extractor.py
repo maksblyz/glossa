@@ -1,6 +1,6 @@
 import fitz
 import spacy
-from . import BaseExtractor
+from base_extractor import BaseExtractor
 from collections import defaultdict
 
 class TextExtractor(BaseExtractor):

@@ -1,5 +1,5 @@
 import fitz
-from . import BaseExtractor
+from base_extractor import BaseExtractor
 
 class ImageExtractor(BaseExtractor):
     def extract(self, pdf_path: str) -> list[dict]:

@@ -1,5 +1,5 @@
 import camelot
-from . import BaseExtractor
+from base_extractor import BaseExtractor
 
 class TableExtractor(BaseExtractor):
     def extract(self, pdf_path: str) -> list[dict]:
