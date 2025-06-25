@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "./ui/button"
 import { DialogContent, Dialog, DialogTrigger, DialogHeader, DialogTitle} from "./ui/dialog"
 
@@ -12,6 +13,7 @@ import { upload } from "@vercel/blob/client"
 
 const UploadDropzone = () => {
 
+    const router = useRouter();
     const [isUploading, setIsUploading] = useState<boolean>(false)
     const [uploadProgress, setUploadProgress] = useState<number>(0)
 
@@ -46,6 +48,10 @@ const UploadDropzone = () => {
             clearInterval(progressInterval)
             setUploadProgress(100)
             // call api/process?url=blob.url
+
+            // redirect to the viewer page
+            const filename = encodeURIComponent(blob.pathname ?? blob.url.split('/').pop()!);
+            router.push(`/pdf/${filename}`);
         } catch (e) {
             console.error(e)
             clearInterval(progressInterval)
