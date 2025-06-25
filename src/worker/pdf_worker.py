@@ -5,6 +5,24 @@ import psycopg2, psycopg2.extras
 from text_extractor import TextExtractor
 from image_extractor import ImageExtractor
 from table_extractor import TableExtractor
+import re, json
+
+NULL_RE = re.compile(r'\u0000')
+
+def strip_nul(obj):
+    # Strip real NUL chars froms strings in lists/dicts
+    if isinstance(obj, str):
+        return obj.replace("\x00", "")
+    if isinstance(obj, list):
+        return [strip_nul(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: strip_nul(v) for k, v in obj.items()}
+    return obj
+
+def safe_json(obj:dict) -> str:
+    """ dump to json and strip null for db"""
+    clean = strip_nul(obj)
+    return json.dumps(clean, ensure_ascii=False)
 
 redis = Redis(
     url =os.environ["UPSTASH_REDIS_REST_URL"],
@@ -49,7 +67,7 @@ def process_job(job:dict):
                 job["name"],
                 obj["page"],
                 obj["type"],
-                json.dumps(obj.get("content", "")),
+                safe_json(obj.get("content", {})),
                 json.dumps(obj.get("bbox", [])),
             )
             for obj in extracted_objects

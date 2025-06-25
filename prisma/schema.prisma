@@ -43,3 +43,14 @@ enum UploadStatus {
   FAILED
   SUCCESS
 }
+
+model PdfObject {
+  id       Int    @id @default(autoincrement())
+  file     String
+  page     Int
+  type     String
+  content  Json
+  bbox     Json
+  
+  @@map("pdf_objects") 
+}
