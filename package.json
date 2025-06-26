@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "worker": "cd src/worker && python pdf_worker.py"
   },
   "dependencies": {
     "@kinde-oss/kinde-auth-nextjs": "^2.7.0",

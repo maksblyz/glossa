@@ -18,7 +18,10 @@ async function fetchObjects(file: string) {
 
 export default async function PDFStub({ params }: { params:  { file: string } }) {
     console.log('Processing file:', params.file);
-    const objects = await fetchObjects(params.file);
+    // Decode the file parameter since it's URL encoded
+    const decodedFile = decodeURIComponent(params.file);
+    console.log('Decoded file:', decodedFile);
+    const objects = await fetchObjects(decodedFile);
     console.log('Objects length:', objects.length);
 
     if (objects.length === 0) {
@@ -33,7 +36,7 @@ export default async function PDFStub({ params }: { params:  { file: string } })
 
     return (
         <main className="p-4 space-y-6">
-            <h1 className="text-xl font-bold break-all">{params.file}</h1>
+            <h1 className="text-xl font-bold break-all">{decodedFile}</h1>
 
             {objects.map((o: any, i: number) => (
                 <div key={i} className="border rounded p-2">
@@ -43,7 +46,7 @@ export default async function PDFStub({ params }: { params:  { file: string } })
                     {o.type === 'text' && <p>{o.content}</p>}
                     {o.type === 'image' && (
                         <img
-                            src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/image/${params.file}?xref=${o.xref}`}
+                            src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/image/${decodedFile}?xref=${o.xref}`}
                             alt="pdf img"
                             className="max-w-full"
                         />
