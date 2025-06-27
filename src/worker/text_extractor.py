@@ -12,9 +12,12 @@ class TextExtractor(BaseExtractor):
         extracted = []
 
         for page_number, page in enumerate(doc, start=1):
+            pw, ph = page.rect.width, page.rect.height
             full_text, char_map = self._extract_page_text(page)
             sentence_spans = self._split_sentences(full_text)
             page_sentences = self._build_sentence_objects(sentence_spans, char_map, page_number)
+            for object in page_sentences:
+                object.update({"page_width": pw, "page_height": ph})
             extracted.extend(page_sentences)
 
         doc.close()

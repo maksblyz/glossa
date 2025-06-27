@@ -59,7 +59,7 @@ def process_job(job:dict):
     psycopg2.extras.execute_values(
         cursor,
         """ 
-        INSERT INTO pdf_objects (file, page, type, content, bbox)
+        INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
         VALUES %s
         """,
         [
@@ -69,6 +69,8 @@ def process_job(job:dict):
                 obj["type"],
                 safe_json(obj.get("content", {})),
                 json.dumps(obj.get("bbox", [])),
+                obj.get("page_width", 0),
+                obj.get("page_height", 0)
             )
             for obj in extracted_objects
         ],

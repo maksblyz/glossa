@@ -7,16 +7,18 @@ class ImageExtractor(BaseExtractor):
         doc = fitz.open(pdf_path)
 
         for page_number, page in enumerate(doc, start=1):
+            pw = page.rect.width
+            ph = page.rect.height
             images = page.get_images(full=True)
-            for img_index, img in enumerate(images):
-                xref = img[0]
+            for xref, *_ in enumerate(images):
                 for inst in page.get_image_info(xref):
-                    bbox = inst['bbox']
                     extracted.append({
                         "type": "image",
-                        "bbox": list(bbox),
+                        "bbox": list(inst["bbox"]),
                         "page": page_number,
-                        "xref": xref
+                        "xref": xref,
+                        "page_width": pw,
+                        "page_height": ph,
                     })
 
         doc.close()

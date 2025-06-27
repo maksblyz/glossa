@@ -1,4 +1,6 @@
 import { headers } from 'next/headers'
+import PDFViewer from '@/components/PDFViewer'
+import { PDFStub } from '@/components/PDFStub';
 
 async function fetchObjects(file: string) {
     const host = (await headers()).get('host')!;
@@ -16,46 +18,16 @@ async function fetchObjects(file: string) {
     return data;
 }
 
-export default async function PDFStub({ params }: { params:  { file: string } }) {
-    console.log('Processing file:', params.file);
-    // Decode the file parameter since it's URL encoded
-    const decodedFile = decodeURIComponent(params.file);
-    console.log('Decoded file:', decodedFile);
-    const objects = await fetchObjects(decodedFile);
-    console.log('Objects length:', objects.length);
-
-    if (objects.length === 0) {
-        return (
-            <main className='grid place-items-center h-96'>
-                <p className='text-zinc-500 animate-pulse'>
-                    Processing PDF... refresh in a few seconds
-                </p>
-            </main>
-        )
-    }
-
+export default async function PDFPage({ params }: { params: { file: string } }) {
+    const file = decodeURIComponent(params.file)
+    const objects = await fetchObjects(file)
+  
+    if (objects.length === 0) return <PDFStub />
+  
     return (
-        <main className="p-4 space-y-6">
-            <h1 className="text-xl font-bold break-all">{decodedFile}</h1>
-
-            {objects.map((o: any, i: number) => (
-                <div key={i} className="border rounded p-2">
-                    <p className="text-xs text-zinc-500">
-                        page {o.page} | {o.type}
-                    </p>
-                    {o.type === 'text' && <p>{o.content}</p>}
-                    {o.type === 'image' && (
-                        <img
-                            src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/image/${decodedFile}?xref=${o.xref}`}
-                            alt="pdf img"
-                            className="max-w-full"
-                        />
-                    )}
-                    {o.type === 'table' && (
-                        <pre className="overflow-x-auto whitespace-pre-wrap">{JSON.stringify(o.content, null, 2)}</pre>
-                    )}
-                </div>
-            ))}
-        </main>
-    );
+      <main className="p-8 space-y-6">
+        <h1 className="text-xl font-bold break-all">{file}</h1>
+        <PDFViewer objects={objects} containerWidth={800} />
+      </main>
+    )
 }
