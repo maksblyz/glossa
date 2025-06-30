@@ -9,68 +9,49 @@ class TextExtractor(BaseExtractor):
 
     def extract(self, pdf_path: str) -> list[dict]:
         doc = fitz.open(pdf_path)
-        extracted = []
+        out = []
 
-        for page_number, page in enumerate(doc, start=1):
-            full_text, char_map = self._extract_page_text(page)
-            sentence_spans = self._split_sentences(full_text)
-            page_sentences = self._build_sentence_objects(sentence_spans, char_map, page_number)
-            extracted.extend(page_sentences)
+        for page_no, page in enumerate(doc, 1):
+            out.extend(self._page_sentences(page, page_no))
 
         doc.close()
-        return extracted
+        return out
 
-    def _extract_page_text(self, page):
-        text_dict = page.get_text("rawdict")
-        full_text = ""
-        char_map = []
+    # NEW
+    def _page_sentences(self, page: fitz.Page, page_no: int) -> list[dict]:
+        words = page.get_text("words") 
+        if not words:
+            return []
 
-        for block in text_dict["blocks"]:
-            if block.get("type") != 0:
+        # Build concatenated text plus per word char offsets
+        pieces, positions = [], []
+        pos = 0
+        for w in words:
+            txt = w[4]
+            pieces.append(txt)
+            start, end = pos, pos + len(txt)
+            positions.append((start, end))
+            pos = end + 1 # +1 for injected space
+
+        full = " ".join(pieces)
+        doc   = self.nlp(full)
+
+        out = []
+        for sent in doc.sents:
+            # grab every word whose char range intersects the sentence span
+            idxs = [i for i,(s,e) in enumerate(positions)
+                    if e > sent.start and s < sent.end]
+            if not idxs:
                 continue
 
-            for line in block["lines"]:
-                for span in line["spans"]:
-                    for char in span.get("chars", []):
-                        c = char["c"]
-                        full_text += c
-                        char_map.append({
-                            "char": c,
-                            "bbox": char["bbox"]
-                        })
+            xs = [words[i][0] for i in idxs] + [words[i][2] for i in idxs]
+            ys = [words[i][1] for i in idxs] + [words[i][3] for i in idxs]
 
-        return full_text, char_map
+            out.append({
+                "type":    "text",
+                "content": sent.text.strip(),
+                "bbox":    [min(xs), min(ys), max(xs), max(ys)],
+                "page":    page_no,
+            })
 
-    def _split_sentences(self, full_text):
-        doc = self.nlp(full_text)
-        return [(s.start_char, s.end_char, s.text.strip()) for s in doc.sents]
-
-    def _build_sentence_objects(self, sentence_spans, char_map, page_number):
-        results = []
-
-        for start, end, sent_text in sentence_spans:
-            chars = char_map[start:end]
-            if not chars:
-                continue
-
-            # group by visual line (same y0 within a tolerance)
-            lines = defaultdict(list)
-            for c in chars:
-                y_top = round(c["bbox"][1] / 2) * 2  # group by y0, ~2pt tolerance
-                lines[y_top].append(c)
-
-            for line_chars in lines.values():
-                bboxes = [c["bbox"] for c in line_chars]
-                x0 = min(b[0] for b in bboxes)
-                y0 = min(b[1] for b in bboxes)
-                x1 = max(b[2] for b in bboxes)
-                y1 = max(b[3] for b in bboxes)
-
-                results.append({
-                    "type": "text",
-                    "content": sent_text,  # same full sentence for all line chunks
-                    "bbox": [x0, y0, x1, y1],
-                    "page": page_number
-                })
-
-        return results
+        return out
