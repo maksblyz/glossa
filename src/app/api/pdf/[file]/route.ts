@@ -10,7 +10,15 @@ export async function GET(
     const objects = await prisma.pdfObject.findMany({
         where: { file: params.file },
         orderBy: [{ page: 'asc' }, { id: 'asc' }],
-        select: { page: true, type: true, content: true, bbox: true },
+        select: { 
+            id: true,
+            page: true, 
+            type: true, 
+            content: true, 
+            bbox: true,
+            page_width: true,
+            page_height: true
+        },
     });
 
     return NextResponse.json(objects);

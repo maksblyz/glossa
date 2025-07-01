@@ -37,7 +37,8 @@ class TextExtractor(BaseExtractor):
         doc   = self.nlp(full)
 
         out = []
-        for sent in doc.sents:
+        # for sent in doc.sents:
+        for idx, sent in enumerate(doc.sents, 1):
             # grab every word whose char range intersects the sentence span
             idxs = [i for i,(s,e) in enumerate(positions)
                     if e > sent.start and s < sent.end]
@@ -48,6 +49,7 @@ class TextExtractor(BaseExtractor):
             ys = [words[i][1] for i in idxs] + [words[i][3] for i in idxs]
 
             out.append({
+                "id": f"{page_no}-{idx}",
                 "type":    "text",
                 "content": sent.text.strip(),
                 "bbox":    [min(xs), min(ys), max(xs), max(ys)],

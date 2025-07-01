@@ -1,4 +1,5 @@
 import { headers } from 'next/headers'
+import PlainPDFViewer from "@/components/PlainPDFViewer";
 
 async function fetchObjects(file: string) {
     const host = (await headers()).get('host')!;
@@ -6,14 +7,19 @@ async function fetchObjects(file: string) {
     const timestamp = Date.now();
     const url = `${proto}://${host}/api/pdf/${encodeURIComponent(file)}?t=${timestamp}`;
     console.log('Fetching from URL:', url);
-    const res = await fetch(url, { cache: 'no-store'});
-    if(!res.ok) throw new Error('API fail');
-    // const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/pdf/${file}`, {
-    //     next: { revalidate: 0 },
-    // });
-    const data = await res.json();
-    console.log('Fetched objects count:', data.length);
-    return data;
+    
+    try {
+        const res = await fetch(url, { cache: 'no-store'});
+        if(!res.ok) {
+            throw new Error(`API failed with status: ${res.status}`);
+        }
+        const data = await res.json();
+        console.log('Fetched objects count:', data.length);
+        return data;
+    } catch (error) {
+        console.error('Error fetching objects:', error);
+        throw error;
+    }
 }
 
 export default async function PDFStub({ params }: { params:  { file: string } }) {
@@ -21,41 +27,44 @@ export default async function PDFStub({ params }: { params:  { file: string } })
     // Decode the file parameter since it's URL encoded
     const decodedFile = decodeURIComponent(params.file);
     console.log('Decoded file:', decodedFile);
-    const objects = await fetchObjects(decodedFile);
-    console.log('Objects length:', objects.length);
+    
+    try {
+        const objects = await fetchObjects(decodedFile);
+        console.log('Objects length:', objects.length);
 
-    if (objects.length === 0) {
+        if (objects.length === 0) {
+            return (
+                <main className='grid place-items-center h-96'>
+                    <div className='text-center'>
+                        <p className='text-zinc-500 animate-pulse mb-4'>
+                            Processing PDF... refresh in a few seconds
+                        </p>
+                        <p className='text-sm text-zinc-400'>
+                            If this persists, the PDF may be empty or corrupted
+                        </p>
+                    </div>
+                </main>
+            )
+        }
+
+        return (
+            <main className="p-4">
+              <PlainPDFViewer objects={objects} />
+            </main>
+          );
+    } catch (error) {
+        console.error('Error in PDF page:', error);
         return (
             <main className='grid place-items-center h-96'>
-                <p className='text-zinc-500 animate-pulse'>
-                    Processing PDF... refresh in a few seconds
-                </p>
+                <div className='text-center'>
+                    <p className='text-red-500 mb-4'>
+                        Error loading PDF: {error instanceof Error ? error.message : 'Unknown error'}
+                    </p>
+                    <p className='text-sm text-zinc-400'>
+                        Please try refreshing the page or contact support if the problem persists
+                    </p>
+                </div>
             </main>
         )
     }
-
-    return (
-        <main className="p-4 space-y-6">
-            <h1 className="text-xl font-bold break-all">{decodedFile}</h1>
-
-            {objects.map((o: any, i: number) => (
-                <div key={i} className="border rounded p-2">
-                    <p className="text-xs text-zinc-500">
-                        page {o.page} | {o.type}
-                    </p>
-                    {o.type === 'text' && <p>{o.content}</p>}
-                    {o.type === 'image' && (
-                        <img
-                            src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/image/${decodedFile}?xref=${o.xref}`}
-                            alt="pdf img"
-                            className="max-w-full"
-                        />
-                    )}
-                    {o.type === 'table' && (
-                        <pre className="overflow-x-auto whitespace-pre-wrap">{JSON.stringify(o.content, null, 2)}</pre>
-                    )}
-                </div>
-            ))}
-        </main>
-    );
 }

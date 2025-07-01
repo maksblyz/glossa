@@ -1,10 +1,12 @@
 import os, time, json, tempfile, requests
 from upstash_redis import Redis
 import psycopg2, psycopg2.extras
+import fitz
 
 from text_extractor import TextExtractor
 from image_extractor import ImageExtractor
 from table_extractor import TableExtractor
+from vision_extractor import VisionExtractor
 import re, json
 
 NULL_RE = re.compile(r'\u0000')
@@ -35,6 +37,7 @@ cursor = conn.cursor()
 text = TextExtractor()
 images = ImageExtractor()
 tables = TableExtractor()
+vision = VisionExtractor()
 
 def download_blob(url: str) -> str:
     # download temp file
@@ -47,44 +50,88 @@ def download_blob(url: str) -> str:
     return temp_path
 
 def process_job(job:dict):
-    print("Processing:", job["name"])
-    pdf_path = download_blob(job["url"])
+    pdf_path = None
+    try:
+        print("Processing:", job["name"])
+        pdf_path = download_blob(job["url"])
 
-    extracted_objects = (
-        text.extract(pdf_path) +
-        images.extract(pdf_path) +
-        tables.extract(pdf_path)
-    )
+        # Extract objects once and store results
+        vision_objects = vision.extract(pdf_path)
+        image_objects = images.extract(pdf_path)
+        table_objects = tables.extract(pdf_path)
+        text_objects = text.extract(pdf_path)
 
-    psycopg2.extras.execute_values(
-        cursor,
-        """ 
-        INSERT INTO pdf_objects (file, page, type, content, bbox)
-        VALUES %s
-        """,
-        [
-            (
-                job["name"],
-                obj["page"],
-                obj["type"],
-                safe_json(obj.get("content", {})),
-                json.dumps(obj.get("bbox", [])),
+        extracted_objects = vision_objects + image_objects + table_objects + text_objects
+
+        print("Vision objects:", len(vision_objects))
+        print("Image objects:", len(image_objects))
+        print("Table objects:", len(table_objects))
+        print("Text objects:", len(text_objects))
+        print("Total objects:", len(extracted_objects))
+
+        # Get page dimensions
+        doc = fitz.open(pdf_path)
+        page_dims = {i + 1: (p.rect.width, p.rect.height) for i, p in enumerate(doc)}
+        doc.close()
+
+        # Add page dimensions to objects that don't have them
+        for obj in extracted_objects:
+            if "page_width" not in obj:
+                w, h = page_dims[obj["page"]]
+                obj["page_width"] = w
+                obj["page_height"] = h
+
+        # Insert into database
+        if extracted_objects:
+            psycopg2.extras.execute_values(
+                cursor,
+                """ 
+                INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
+                VALUES %s
+                """,
+                [
+                    (
+                        job["name"],
+                        obj["page"],
+                        obj["type"],
+                        safe_json(obj.get("content", {})),
+                        json.dumps(obj.get("bbox", [])),
+                        obj["page_width"],
+                        obj["page_height"],
+                    )
+                    for obj in extracted_objects
+                ],
             )
-            for obj in extracted_objects
-        ],
-    )
+            conn.commit()
+            print("Successfully inserted", len(extracted_objects), "objects")
+        else:
+            print("No objects extracted from", job["name"])
 
-    conn.commit()
-    os.remove(pdf_path)
+    except Exception as e:
+        print(f"Error processing {job['name']}: {str(e)}")
+        conn.rollback()
+        raise
+    finally:
+        # Clean up temporary file
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except Exception as e:
+                print(f"Warning: Could not remove temp file {pdf_path}: {str(e)}")
+    
     print("Done: ", job["name"])
 
 def main():
     while True:
-        job_json = redis.rpop("pdf_jobs")
-        if job_json is None:
-            time.sleep(2)
-            continue
-        process_job(json.loads(job_json))
+        try:
+            job_json = redis.rpop("pdf_jobs")
+            if job_json is None:
+                time.sleep(2)
+                continue
+            process_job(json.loads(job_json))
+        except Exception as e:
+            print(f"Error in main loop: {str(e)}")
+            time.sleep(5)  # Wait longer on error
 
 if __name__ == "__main__":
     main()

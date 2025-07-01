@@ -51,6 +51,10 @@ model PdfObject {
   type     String
   content  Json
   bbox     Json
+  page_width  Float
+  page_height Float
+
+
   
   @@map("pdf_objects") 
 }
