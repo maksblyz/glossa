@@ -6,7 +6,7 @@ import fitz
 from text_extractor import TextExtractor
 from image_extractor import ImageExtractor
 from table_extractor import TableExtractor
-from vision_extractor import VisionExtractor
+from llm_cleaner import tsx_from_chunks
 import re, json
 
 NULL_RE = re.compile(r'\u0000')
@@ -34,10 +34,10 @@ redis = Redis(
 conn = psycopg2.connect(os.environ["DATABASE_URL"])
 cursor = conn.cursor()
 
+# Extractors
 text = TextExtractor()
 images = ImageExtractor()
 tables = TableExtractor()
-vision = VisionExtractor()
 
 def download_blob(url: str) -> str:
     # download temp file
@@ -55,34 +55,57 @@ def process_job(job:dict):
         print("Processing:", job["name"])
         pdf_path = download_blob(job["url"])
 
-        # Extract objects once and store results
-        vision_objects = vision.extract(pdf_path)
+        # Extract text chunks for LLM processing
+        text_objects = text.extract(pdf_path)
+        print("Text objects:", len(text_objects))
+
+        # Extract images and tables (vision-based)
         image_objects = images.extract(pdf_path)
         table_objects = tables.extract(pdf_path)
-        text_objects = text.extract(pdf_path)
-
-        extracted_objects = vision_objects + image_objects + table_objects + text_objects
-
-        print("Vision objects:", len(vision_objects))
         print("Image objects:", len(image_objects))
         print("Table objects:", len(table_objects))
-        print("Text objects:", len(text_objects))
-        print("Total objects:", len(extracted_objects))
+
+        # Process text through LLM for formatting
+        if text_objects:
+            print("Processing text through LLM...")
+            formatted_content = tsx_from_chunks(text_objects)
+            print("LLM processing complete")
+        else:
+            formatted_content = ""
 
         # Get page dimensions
         doc = fitz.open(pdf_path)
         page_dims = {i + 1: (p.rect.width, p.rect.height) for i, p in enumerate(doc)}
         doc.close()
 
-        # Add page dimensions to objects that don't have them
-        for obj in extracted_objects:
-            if "page_width" not in obj:
-                w, h = page_dims[obj["page"]]
-                obj["page_width"] = w
-                obj["page_height"] = h
+        # Store formatted content
+        if formatted_content:
+            cursor.execute(
+                """
+                INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    job["name"],
+                    1,  # Store formatted content on page 1
+                    "formatted",
+                    json.dumps({"content": formatted_content}),
+                    json.dumps([0, 0, 0, 0]),  # Placeholder bbox
+                    page_dims[1][0] if page_dims else 612,
+                    page_dims[1][1] if page_dims else 792,
+                )
+            )
 
-        # Insert into database
-        if extracted_objects:
+        # Store images and tables
+        vision_objects = image_objects + table_objects
+        if vision_objects:
+            # Add page dimensions to objects that don't have them
+            for obj in vision_objects:
+                if "page_width" not in obj:
+                    w, h = page_dims[obj["page"]]
+                    obj["page_width"] = w
+                    obj["page_height"] = h
+
             psycopg2.extras.execute_values(
                 cursor,
                 """ 
@@ -99,13 +122,12 @@ def process_job(job:dict):
                         obj["page_width"],
                         obj["page_height"],
                     )
-                    for obj in extracted_objects
+                    for obj in vision_objects
                 ],
             )
-            conn.commit()
-            print("Successfully inserted", len(extracted_objects), "objects")
-        else:
-            print("No objects extracted from", job["name"])
+
+        conn.commit()
+        print("Successfully processed", job["name"])
 
     except Exception as e:
         print(f"Error processing {job['name']}: {str(e)}")
@@ -122,13 +144,35 @@ def process_job(job:dict):
     print("Done: ", job["name"])
 
 def main():
+    print("PDF Worker started - waiting for jobs...")
+    job_count = 0
+    
     while True:
         try:
+            print(f"Checking for jobs... (checked {job_count} times)")
             job_json = redis.rpop("pdf_jobs")
             if job_json is None:
+                print("No jobs in queue, sleeping for 2 seconds...")
                 time.sleep(2)
+                job_count += 1
                 continue
+                
+            print(f"Found job! Processing...")
             process_job(json.loads(job_json))
+            job_count = 0  # Reset counter after processing
+            
+            # for testing
+            while True:
+                user_input = input("\nWould you like to process another PDF? (y/n): ")
+                if user_input in ['y']:
+                    print("Continuing to wait for jobs...")
+                    break
+                elif user_input in ['n']:
+                    print("Quitting")
+                    return
+                else:
+                    print("Print y or n")
+            
         except Exception as e:
             print(f"Error in main loop: {str(e)}")
             time.sleep(5)  # Wait longer on error

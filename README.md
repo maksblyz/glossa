@@ -50,6 +50,7 @@ npm install
 - `DATABASE_URL` - PostgreSQL connection string
 - `UPSTASH_REDIS_REST_URL` - Upstash Redis URL
 - `UPSTASH_REDIS_REST_TOKEN` - Upstash Redis token
+- `OPENAI_API_KEY` - OpenAI API key for LLM text formatting
 
 3. Run the development server:
 ```bash
