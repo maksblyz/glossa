@@ -124,3 +124,52 @@
 .grainy{
   background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwBAMAAAClLOS0AAAAElBMVEUAAAD8/vz08vT09vT8+vzs7uxH16TeAAAAAXRSTlMAQObYZgAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAuFJREFUOI0Vk+3NLiEIRG1B8ClAYAsQ2AIEt4D9ePtv5Xp/mZgYJ2fOFJKEfInkVWY2aglmQFkimRTV7MblYyVqD7HXyhKsSuPX12MeDhRHLtGvRG+P+B/S0Vu4OswR9tmvwNPyhdCDbVayJGads/WiUWcjCvCnruTBNHS9gmX2VzVbk7ZvB1gb1hkWFGl+A/n+/FowcO34U/XvKqZ/fHY+6vgRfU92XrOBUbGeeDfQmjWjdrK+frc6FdGReQhfSF5JvR29O2QrfNw1huTwlgsyXLo0u+5So82sgv7tsFZR2nxB6lXiquHrfD8nfYZ9SeT0LiuvSoVrxGY16pCNRZKqvwWsn5OHypPBELzohMCaRaa0ceTHYqe7X/gfJEEtKFbJpWoNqO+aS1cuTykGPpK5Ga48m6L3NefTr013KqYBQu929iP1oQ/7UwSR+i3zqruUmT84qmhzLpxyj7pr9kg7LKvqaXxZmdpn+6o8sHqSqojy02gU3U8q9PnpidiaLks0mbMYz+q2uVXsoBQ8bfURULYxRgZVYCHMv9F4OA7qxT2NPPpvGQ/sTDH2yznKh7E2AcErfcNsaIoN1izzbJiaY63x4QjUFdBSvDCvugPpu5xDny0jzEeuUQbcP1aGT9V90uixngTRLYNEIIZ6yOF1H8tm7rj2JxiefsVy53zGVy3ag5uuPsdufYOzYxLRxngKe7nhx3VAq54pmz/DK9/Q3aDam2Yt3hNXB4HuU87jKNd/CKZn77Qdn5QkXPfqSkhk7hGOXXB+7v09KbBbqdvxGqa0AqfK/atIrL2WXdAgXAJ43Wtwe/aIoacXezeGPMlhDOHDbSfHnaXsL2QzbT82GRwZuezdwcoWzx5pnOnGMUdHuiY7lhdyWzWiHnucLZQxYStMJbtcydHaQ6vtMbe0AcDbxG+QG14AL94xry4297xpy9Cpf1OoxZ740gHDfrK+gtsy0xabwJmfgtCeii79B6aj0SJeLbd7AAAAAElFTkSuQmCC);
 }
+
+
+.academic-paper {
+  @apply prose prose-sm max-w-none;          /* tighter line height, sane defaults   */
+  font-family: "Times New Roman", Georgia, serif;
+  line-height: 1.25;
+  text-align: justify;
+  hyphens: auto;                             /* word-breaking like LaTeX             */
+}
+
+.academic-paper h1,
+.academic-paper h2,
+.academic-paper h3 { @apply font-semibold text-black mb-2 mt-6; }
+
+.page {                                      /* wrap each page for paging/columns     */
+  position: relative;
+  width: 6.5in;  /* ≈468px @72 dpi */
+  margin: 0 auto;
+  padding: 0.85in 0.9in;
+  column-count: 1;                           /* two-column layout – canonical look    */
+  column-gap: 0.3in;
+}
+
+.page-number {
+  position: absolute;
+  bottom: 0.5in;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  color: #555;
+}
+
+figure, table {
+  break-inside: avoid-column;   /* don’t split across columns */
+  margin: 0 0 1rem;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@import 'katex/dist/katex.min.css';
+
+/* paranoia—override just in case */
+.academic-paper .katex { font-family: inherit; }

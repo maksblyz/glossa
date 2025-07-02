@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import PlainPDFViewer from "@/components/PlainPDFViewer";
+import FormattedPDFViewer from "@/components/FormattedPDFViewer";
 
 async function fetchObjects(file: string) {
     const host = (await headers()).get('host')!;
@@ -34,7 +34,7 @@ export default async function PDFStub({ params }: { params:  { file: string } })
 
         if (objects.length === 0) {
             return (
-                <main className='grid place-items-center h-96'>
+                <main className='grid place-items-center h-96 bg-neutral-100'>
                     <div className='text-center'>
                         <p className='text-zinc-500 animate-pulse mb-4'>
                             Processing PDF... refresh in a few seconds
@@ -48,14 +48,14 @@ export default async function PDFStub({ params }: { params:  { file: string } })
         }
 
         return (
-            <main className="p-4">
-              <PlainPDFViewer objects={objects} />
+            <main className="min-h-screen bg-neutral-100 flex flex-col items-center py-12">
+              <FormattedPDFViewer objects={objects} />
             </main>
           );
     } catch (error) {
         console.error('Error in PDF page:', error);
         return (
-            <main className='grid place-items-center h-96'>
+            <main className='grid place-items-center h-96 bg-neutral-100'>
                 <div className='text-center'>
                     <p className='text-red-500 mb-4'>
                         Error loading PDF: {error instanceof Error ? error.message : 'Unknown error'}
