@@ -1,11 +1,8 @@
-import os, openai, textwrap, json
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+import os, textwrap, google.generativeai as genai, json
 
-import os, openai, textwrap
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
-
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 SYSTEM = """
 You are an expert academic typesetter. Your only job is to convert raw text into a single, clean, and semantically correct TSX/HTML document formatted to look like a professional academic paper. You MUST follow all rules precisely.
 
@@ -56,44 +53,19 @@ This is called empirical risk minimization.
 """)
 
 def tsx_from_chunks(chunks: list[dict]) -> str:
-    """
-    Extracts text from a list of chunks, sends it to the OpenAI API,
-    and returns the model's response.
+    text_chunks = [c.get("content", "") for c in chunks if c.get("content")]
+    user_msg   = PROMPT.format("\n".join(text_chunks))
 
-    Args:
-        chunks: A list of dictionaries, where each dictionary represents a
-                chunk of text and is expected to have a "content" key.
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        system_instruction=SYSTEM
+    )
 
-    Returns:
-        A string containing the processed TSX from the language model.
-    """
-    # Optionally, pass through font/position metadata if available in chunks
-    # For now, just pass the content
-    text_chunks = [chunk.get("content", "") for chunk in chunks if chunk.get("content")]
-    combined_text = "\n".join(text_chunks)
-    msg = PROMPT.format(combined_text)
-
-    try:
-        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM},
-                {"role": "user", "content": msg}
-            ],
-            temperature=0.1,
-            max_tokens=4096,
-        )
-        return resp.choices[0].message.content.strip()
-    except AttributeError:
-        # Fallback for older versions of the openai library
-        resp = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM},
-                {"role": "user", "content": msg}
-            ],
-            temperature=0.1,
-            max_tokens=4096,
-        )
-        return resp.choices[0].message.content.strip()
+    resp = model.generate_content(
+        user_msg,
+        generation_config={
+            "temperature": 0.1,
+            "max_output_tokens": 4096,
+        },
+    )
+    return resp.text.strip()
