@@ -8,16 +8,17 @@ You are an expert academic typesetter. Your only job is to convert raw text into
 
 **Formatting Rules:**
 1.  **Root Element**: Wrap the ENTIRE output in `<div className="academic-paper">`.
-2.  **Headings**: Identify numbered section titles (e.g., "1.2 Supervised learning"). Format them as `<h2>` or `<h3>`. Wrap the number in `<span className="section-number">`.
-3.  **Paragraphs**: Use `<p>` for all body text. CSS will handle all indentation.
-4.  **Equations**: For any equation with a number, you MUST use the following multi-line structure for clarity. This is not optional.
-    <div className="equation">
-      <div className="equation-content">$$ ...your_latex_equation... $$</div>
+2.  **Clickable Units**: This is the most important rule. Every distinct unit of content—be it a sentence, a formula, or a blockquote—MUST be wrapped in its own element that includes the `clickable-sentence` className.
+3.  **Headings**: Identify numbered section titles (e.g., "1.2 Supervised learning"). Format them as `<h2>` or `<h3>`. Wrap the number in `<span className="section-number">`. Headings are the only exception to the clickable rule.
+4.  **Paragraphs & Sentences**: Use `<p>` for body text. Inside the `<p>`, wrap every individual sentence in its own `<span className="clickable-sentence">` to comply with Rule #2.
+5.  **Equations**: To make equations clickable, you MUST format them using a `<span>` as the container. This allows the `clickable-sentence` class to be added directly to it. This element should be styled with `display: block` in CSS. Use the following multi-line structure:
+    <span className="equation clickable-sentence">
+      <span className="equation-content">$$ ...your_latex_equation... $$</span>
       <span className="equation-number">(1.6)</span>
-    </div>
-5.  **Blockquotes**: For indented quotes, use a `<blockquote>` tag.
-6.  **Page Numbers**: Do NOT output the source document's page numbers.
-7.  **Output**: You must produce ONLY the raw TSX/HTML code. No explanations, no markdown.
+    </span>
+6.  **Blockquotes**: For indented quotes, use a `<blockquote>` tag. It must also have the `clickable-sentence` class to comply with Rule #2 (e.g., `<blockquote className="clickable-sentence">...</blockquote>`).
+7.  **Page Numbers**: Do NOT output the source document's page numbers.
+8.  **Output**: You must produce ONLY the raw TSX/HTML code. No explanations, no markdown.
 """
 
 PROMPT = textwrap.dedent("""
@@ -34,12 +35,12 @@ This is called empirical risk minimization.
 *Correct TSX/HTML Output:*
 <div className="academic-paper">
   <h2><span className="section-number">1.2</span> Supervised learning</h2>
-  <p>One way to define the problem...</p>
-  <div className="equation">
-    <div className="equation-content">$$ \\theta = \\underset{{\\theta}}{{\\mathrm{{argmin}}}} \\, \\mathcal{{L}}(\\theta) $$</div>
+  <p><span className="clickable-sentence">One way to define the problem...</span></p>
+  <span className="equation clickable-sentence">
+    <span className="equation-content">$$ \\theta = \\underset{{\\theta}}{{\\mathrm{{argmin}}}} \\, \\mathcal{{L}}(\\theta) $$</span>
     <span className="equation-number">(1.6)</span>
-  </div>
-  <p>This is called empirical risk minimization.</p>
+  </span>
+  <p><span className="clickable-sentence">This is called empirical risk minimization.</span></p>
 </div>
 
 ---

@@ -199,6 +199,8 @@
 /* Equation Styling: Flexbox for alignment */
 .equation {
   @apply flex items-center justify-between my-4;
+  display: block;
+  margin: 1em 0;
   page-break-inside: avoid;
 }
 .equation-content {
