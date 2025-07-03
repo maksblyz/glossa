@@ -36,8 +36,8 @@ cursor = conn.cursor()
 
 # Extractors
 text = TextExtractor()
-images = ImageExtractor()
-tables = TableExtractor()
+# images = ImageExtractor()
+# tables = TableExtractor()
 
 def download_blob(url: str) -> str:
     # download temp file
@@ -60,10 +60,10 @@ def process_job(job:dict):
         print("Text objects:", len(text_objects))
 
         # Extract images and tables (vision-based)
-        image_objects = images.extract(pdf_path)
-        table_objects = tables.extract(pdf_path)
-        print("Image objects:", len(image_objects))
-        print("Table objects:", len(table_objects))
+        # image_objects = images.extract(pdf_path)
+        # table_objects = tables.extract(pdf_path)
+        # print("Image objects:", len(image_objects))
+        # print("Table objects:", len(table_objects))
 
         # Process text through LLM for formatting
         if text_objects:
@@ -96,35 +96,35 @@ def process_job(job:dict):
                 )
             )
 
-        # Store images and tables
-        vision_objects = image_objects + table_objects
-        if vision_objects:
-            # Add page dimensions to objects that don't have them
-            for obj in vision_objects:
-                if "page_width" not in obj:
-                    w, h = page_dims[obj["page"]]
-                    obj["page_width"] = w
-                    obj["page_height"] = h
+        # # Store images and tables
+        # vision_objects = image_objects + table_objects
+        # if vision_objects:
+        #     # Add page dimensions to objects that don't have them
+        #     for obj in vision_objects:
+        #         if "page_width" not in obj:
+        #             w, h = page_dims[obj["page"]]
+        #             obj["page_width"] = w
+        #             obj["page_height"] = h
 
-            psycopg2.extras.execute_values(
-                cursor,
-                """ 
-                INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
-                VALUES %s
-                """,
-                [
-                    (
-                        job["name"],
-                        obj["page"],
-                        obj["type"],
-                        safe_json(obj.get("content", {})),
-                        json.dumps(obj.get("bbox", [])),
-                        obj["page_width"],
-                        obj["page_height"],
-                    )
-                    for obj in vision_objects
-                ],
-            )
+        #     psycopg2.extras.execute_values(
+        #         cursor,
+        #         """ 
+        #         INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
+        #         VALUES %s
+        #         """,
+        #         [
+        #             (
+        #                 job["name"],
+        #                 obj["page"],
+        #                 obj["type"],
+        #                 safe_json(obj.get("content", {})),
+        #                 json.dumps(obj.get("bbox", [])),
+        #                 obj["page_width"],
+        #                 obj["page_height"],
+        #             )
+        #             for obj in vision_objects
+        #         ],
+        #     )
 
         conn.commit()
         print("Successfully processed", job["name"])
