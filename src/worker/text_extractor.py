@@ -1,59 +1,42 @@
-import fitz
-import spacy
+import fitz  # PyMuPDF
 from base_extractor import BaseExtractor
-from collections import defaultdict
+from operator import itemgetter
 
 class TextExtractor(BaseExtractor):
-    def __init__(self):
-        self.nlp = spacy.load("en_core_web_sm")
-
+    """
+    Extracts text from a PDF, preserving the block structure.
+    This approach is superior to sentence-based extraction because it
+    maintains the document's original layout (headings, paragraphs, etc.),
+    giving the LLM the necessary context for proper formatting.
+    """
     def extract(self, pdf_path: str) -> list[dict]:
         doc = fitz.open(pdf_path)
-        out = []
+        blocks = []
+        for page_num, page in enumerate(doc, 1):
+            # Extract text blocks from the page as a dictionary
+            page_blocks = page.get_text("dict", flags=fitz.TEXT_INHIBIT_SPACES)["blocks"]
+            for block in page_blocks:
+                # We are only interested in text blocks (type 0)
+                if block.get("type", 1) != 0:
+                    continue
 
-        for page_no, page in enumerate(doc, 1):
-            out.extend(self._page_sentences(page, page_no))
+                # Reconstruct the text content of the block
+                block_text = ""
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        block_text += span.get("text", "")
+                    block_text += " "  # Add space between lines
 
+                # Skip empty blocks
+                if not block_text.strip():
+                    continue
+
+                blocks.append({
+                    "id": f"{page_num}-{block['number']}",
+                    "type": "text",
+                    "content": block_text.strip(),
+                    "bbox": list(block["bbox"]),
+                    "page": page_num,
+                })
         doc.close()
-        return out
-
-    # NEW
-    def _page_sentences(self, page: fitz.Page, page_no: int) -> list[dict]:
-        words = page.get_text("words") 
-        if not words:
-            return []
-
-        # Build concatenated text plus per word char offsets
-        pieces, positions = [], []
-        pos = 0
-        for w in words:
-            txt = w[4]
-            pieces.append(txt)
-            start, end = pos, pos + len(txt)
-            positions.append((start, end))
-            pos = end + 1 # +1 for injected space
-
-        full = " ".join(pieces)
-        doc   = self.nlp(full)
-
-        out = []
-        # for sent in doc.sents:
-        for idx, sent in enumerate(doc.sents, 1):
-            # grab every word whose char range intersects the sentence span
-            idxs = [i for i,(s,e) in enumerate(positions)
-                    if e > sent.start and s < sent.end]
-            if not idxs:
-                continue
-
-            xs = [words[i][0] for i in idxs] + [words[i][2] for i in idxs]
-            ys = [words[i][1] for i in idxs] + [words[i][3] for i in idxs]
-
-            out.append({
-                "id": f"{page_no}-{idx}",
-                "type":    "text",
-                "content": sent.text.strip(),
-                "bbox":    [min(xs), min(ys), max(xs), max(ys)],
-                "page":    page_no,
-            })
-
-        return out
+        return blocks

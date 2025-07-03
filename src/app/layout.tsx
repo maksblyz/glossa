@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from 'next/font/google'
+// import { Inter } from 'next/font/google'
 import { cn } from '@/lib/utils'
 import "./globals.css";
 import 'katex/dist/katex.min.css'; 
@@ -8,7 +8,7 @@ import Providers from "@/components/Providers";
 
 import "react-loading-skeleton/dist/skeleton.css"
 
-const inter = Inter({ subsets: ['latin']})
+// const inter = Inter({ subsets: ['latin']})
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -24,8 +24,7 @@ export default function RootLayout({
     <html lang="en" className='light'>
       <Providers>
         <body
-          className={cn('min-h-screen font-sans antialiased grainy',
-            inter.className
+          className={cn('min-h-screen font-sans antialiased grainy'
           )}>
             <NavBar />
           {children}

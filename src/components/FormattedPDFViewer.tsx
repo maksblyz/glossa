@@ -9,7 +9,7 @@ type FormattedObject = {
   type: string;
   content: {
     content: string;
-  };
+  } | string;
   bbox: number[];
   page_width: number;
   page_height: number;
@@ -27,16 +27,18 @@ type VisionObject = {
 
 // Helper to render KaTeX math in HTML string
 type Rendered = { __html: string };
-function renderMath(html: string): Rendered {
-  // Replace $$...$$ (display math)
-  html = html.replace(/\$\$([\s\S]+?)\$\$/g, (_match, math) =>
-    katex.renderToString(math, { displayMode: true, throwOnError: false })
-  );
-  // Replace $...$ (inline math)
-  html = html.replace(/\$([^$]+?)\$/g, (_match, math) =>
-    katex.renderToString(math, { displayMode: false, throwOnError: false })
-  );
-  return { __html: html };
+function renderMath(html:string){
+  // display: $$ … $$  OR  \[ … \]
+  html = html
+    .replace(/\$\$([\s\S]+?)\$\$/g,(_,m)=>katex.renderToString(m,{displayMode:true,throwOnError:false}))
+    .replace(/\\\[([\s\S]+?)\\\]/g,(_,m)=>katex.renderToString(m,{displayMode:true,throwOnError:false}));
+
+  // inline: $ … $  OR  \( … \)
+  html = html
+    .replace(/\$([^$]+?)\$/g,(_,m)=>katex.renderToString(m,{displayMode:false,throwOnError:false}))
+    .replace(/\\\(([^\)]+?)\\\)/g,(_,m)=>katex.renderToString(m,{displayMode:false,throwOnError:false}));
+
+  return {__html:html};
 }
 
 export default function FormattedPDFViewer({
@@ -50,8 +52,15 @@ export default function FormattedPDFViewer({
   const formattedObjects = objects.filter(obj => obj.type === "formatted") as FormattedObject[];
   const visionObjects = objects.filter(obj => obj.type !== "formatted") as VisionObject[];
 
-  const formattedContent = formattedObjects[0]?.content?.content || "";
+  const formattedContent = typeof formattedObjects[0]?.content === 'string' 
+    ? formattedObjects[0].content 
+    : formattedObjects[0]?.content?.content || "";
   const pageNumber = formattedObjects[0]?.page || 1; // Get page number
+  
+  // Debug logging
+  console.log('Formatted objects:', formattedObjects);
+  console.log('Formatted content:', formattedContent);
+  console.log('Content type:', typeof formattedContent);
 
   // Standard US Letter: 8.5 x 11 inches at 96dpi = 816 x 1056 px
   const PAGE_WIDTH = 816;
@@ -84,7 +93,7 @@ export default function FormattedPDFViewer({
           {/* Render the LLM's academic-paper TSX/HTML */}
           <div
             className="academic-paper" // This class is now styled in globals.css
-            dangerouslySetInnerHTML={renderMath(formattedContent)}
+            dangerouslySetInnerHTML={renderMath(formattedContent as string)}
           />
         </div>
       </div>
