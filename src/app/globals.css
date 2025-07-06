@@ -141,6 +141,7 @@
   color: black;
   max-width: none; /* Replaces @apply max-w-none */
   padding: 0;
+  page-break-inside: auto;
 }
 
 /* Headings: Use standard CSS properties instead of @apply */
@@ -151,6 +152,8 @@
   color: black;
   line-height: 1.2;
   text-align: left;
+  page-break-after: avoid;
+  page-break-inside: avoid;
 }
 
 .academic-paper h2 {
@@ -175,6 +178,9 @@
   margin-top: 0.5rem; /* @apply my-2 */
   margin-bottom: 0.5rem; /* @apply my-2 */
   text-indent: 1.5em;
+  page-break-inside: avoid;
+  orphans: 3;
+  widows: 3;
 }
 
 /* Do not indent paragraphs that immediately follow a heading */
@@ -182,6 +188,7 @@
 .academic-paper h2 + p,
 .academic-paper h3 + p {
   text-indent: 0;
+  page-break-before: avoid;
 }
 
 /* Blockquotes */
@@ -194,6 +201,7 @@
   font-style: italic;
   border-left: 2px solid #ccc;
   text-indent: 0;
+  page-break-inside: avoid;
 }
 
 /* Equation Styling: Flexbox for alignment */
@@ -202,6 +210,7 @@
   display: block;
   margin: 1em 0;
   page-break-inside: avoid;
+  page-break-after: avoid;
 }
 .equation-content {
   @apply flex-grow text-center; /* Center the math content */
@@ -243,4 +252,43 @@
 .page-number {
   @apply text-right text-sm text-gray-600;
   font-family: sans-serif;
+}
+
+/* Page break controls for better pagination */
+.academic-paper {
+  page-break-inside: auto;
+}
+
+.academic-paper h1,
+.academic-paper h2,
+.academic-paper h3 {
+  page-break-after: avoid;
+  page-break-inside: avoid;
+}
+
+.academic-paper p {
+  page-break-inside: avoid;
+  orphans: 3;
+  widows: 3;
+}
+
+.academic-paper blockquote {
+  page-break-inside: avoid;
+}
+
+.academic-paper .equation {
+  page-break-inside: avoid;
+  page-break-after: avoid;
+}
+
+/* Ensure proper spacing between pages */
+.page-break {
+  page-break-before: always;
+}
+
+/* Prevent orphaned headings */
+.academic-paper h1 + p,
+.academic-paper h2 + p,
+.academic-paper h3 + p {
+  page-break-before: avoid;
 }
