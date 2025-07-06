@@ -212,6 +212,7 @@ export default function FormattedPDFViewer({
   const [pages, setPages] = useState<Page[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
 
   // Separate formatted content from vision objects
   const formattedObjects = objects.filter(obj => obj.type === "formatted") as FormattedObject[];
@@ -233,6 +234,42 @@ export default function FormattedPDFViewer({
   const HORIZONTAL_MARGIN = 96; // 1 inch
   const VERTICAL_MARGIN = 72; // 0.75 inch
   const CONTENT_HEIGHT = PAGE_HEIGHT - (2 * VERTICAL_MARGIN); // Available content height
+
+  // Handle click events on clickable elements
+  const handleClick = (event: React.MouseEvent) => {
+    console.log('Click event triggered');
+    const target = event.target as HTMLElement;
+    console.log('Clicked target:', target);
+    console.log('Target classes:', target.className);
+    
+    // Check if the clicked element or its parent has the clickable-sentence class
+    const clickableElement = target.closest('.clickable-sentence') as HTMLElement;
+    console.log('Found clickable element:', clickableElement);
+    
+    if (clickableElement) {
+      console.log('Clickable element found, text:', clickableElement.textContent?.trim());
+      
+      // Remove previous selection
+      if (selectedElement) {
+        selectedElement.classList.remove('selected-sentence');
+      }
+      
+      // Add selection to current element
+      clickableElement.classList.add('selected-sentence');
+      setSelectedElement(clickableElement);
+      
+      // Log the clicked content
+      console.log('Clicked element:', clickableElement.textContent?.trim());
+      
+      // You can add more functionality here, such as:
+      // - Opening a tooltip with additional information
+      // - Highlighting related content
+      // - Triggering an API call
+      // - Copying to clipboard
+    } else {
+      console.log('No clickable element found');
+    }
+  };
 
   // Effect to handle pagination on client side after hydration
   useEffect(() => {
@@ -274,6 +311,7 @@ export default function FormattedPDFViewer({
             style={{
               padding: `${VERTICAL_MARGIN}px ${HORIZONTAL_MARGIN}px`,
             }}
+            onClick={handleClick}
           >
             <div
               className="academic-paper"
@@ -313,8 +351,9 @@ export default function FormattedPDFViewer({
             style={{
               padding: `${VERTICAL_MARGIN}px ${HORIZONTAL_MARGIN}px`,
             }}
+            onClick={handleClick}
           >
-            {/* Render the LLM's academic-paper TSX/HTML */}
+            {/* Render the LLM's academic-paper HTML */}
             <div
               className="academic-paper"
               dangerouslySetInnerHTML={renderMath(page.content)}
