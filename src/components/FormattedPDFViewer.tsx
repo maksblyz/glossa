@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import 'katex/dist/katex.min.css';
 import katex from 'katex';
+import PopupCard from './PopupCard';
 
 type FormattedObject = {
   id: string;
@@ -213,6 +214,8 @@ export default function FormattedPDFViewer({
   const [isClient, setIsClient] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number; side: 'left' | 'right' } | null>(null);
+  const [popupContent, setPopupContent] = useState<string>('');
 
   // Separate formatted content from vision objects
   const formattedObjects = objects.filter(obj => obj.type === "formatted") as FormattedObject[];
@@ -258,18 +261,86 @@ export default function FormattedPDFViewer({
       clickableElement.classList.add('selected-sentence');
       setSelectedElement(clickableElement);
       
-      // Log the clicked content
-      console.log('Clicked element:', clickableElement.textContent?.trim());
+      // Calculate popup position
+      const rect = clickableElement.getBoundingClientRect();
+      const pageContainer = (event.currentTarget as HTMLElement).getBoundingClientRect();
       
-      // You can add more functionality here, such as:
-      // - Opening a tooltip with additional information
-      // - Highlighting related content
-      // - Triggering an API call
-      // - Copying to clipboard
+      // PDF page width is 816px (8.5 inches), popup should be ~480px (5 inches)
+      const popupWidth = 480;
+      const margin = 20; // Space between popup and element
+      
+      // Get the PDF page position in the viewport
+      const pdfPageLeft = pageContainer.left;
+      const pdfPageRight = pageContainer.right;
+      
+      // Determine if popup should appear on left or right side
+      // Prefer right side if there's enough space, otherwise left
+      const spaceOnRight = window.innerWidth - rect.right;
+      const spaceOnLeft = rect.left;
+      let side: 'left' | 'right' = spaceOnRight >= popupWidth + margin ? 'right' : 'left';
+      
+      let x: number;
+      if (side === 'right') {
+        // Position to the right of the clicked element
+        x = rect.right + margin;
+      } else {
+        // Position to the left, but ensure it doesn't go too far left
+        x = Math.max(pdfPageLeft - popupWidth + 100, rect.left - popupWidth - margin);
+      }
+      
+      // Ensure popup doesn't go off-screen
+      x = Math.max(20, Math.min(x, window.innerWidth - popupWidth - 20));
+      
+      // If we had to adjust the position significantly, change the side to avoid transform issues
+      if (x <= 100) {
+        side = 'right';
+      }
+      
+      const y = rect.top + (rect.height / 2) - 100; // Center vertically with some offset
+      // Ensure popup doesn't go off-screen vertically
+      const yAdjusted = Math.max(20, Math.min(y, window.innerHeight - 200));
+      
+      // Debug positioning
+      console.log('Rect:', rect);
+      console.log('Page container:', pageContainer);
+      console.log('Calculated position:', { x, y, side });
+      
+      setPopupPosition({ x, y: yAdjusted, side });
+      setPopupContent(clickableElement.textContent?.trim() || '');
+      
+      // Debug logging
+      console.log('Setting popup position:', { x, y, side });
+      console.log('Setting popup content:', clickableElement.textContent?.trim());
+      console.log('Clicked element:', clickableElement.textContent?.trim());
     } else {
       console.log('No clickable element found');
+      // Close popup if clicking outside
+      setPopupPosition(null);
+      setPopupContent('');
     }
   };
+
+  // Handle clicking outside popup to close it
+  const handleOutsideClick = (event: React.MouseEvent) => {
+    // Don't close if clicking on a clickable element
+    if ((event.target as HTMLElement).closest('.clickable-sentence')) {
+      return;
+    }
+    
+    if (popupPosition && !(event.target as HTMLElement).closest('.popup-card')) {
+      setPopupPosition(null);
+      setPopupContent('');
+      if (selectedElement) {
+        selectedElement.classList.remove('selected-sentence');
+        setSelectedElement(null);
+      }
+    }
+  };
+
+  // Debug effect to monitor popup state
+  useEffect(() => {
+    console.log('Popup state changed:', { popupPosition, popupContent });
+  }, [popupPosition, popupContent]);
 
   // Effect to handle pagination on client side after hydration
   useEffect(() => {
@@ -362,7 +433,7 @@ export default function FormattedPDFViewer({
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
           }
         `}</style>
-        <div className="w-full flex flex-col items-center py-12 bg-gray-100">
+        <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>
         <div
           className="relative bg-white shadow-lg border border-gray-300"
           style={{
@@ -392,6 +463,23 @@ export default function FormattedPDFViewer({
           </div>
         )}
       </div>
+      
+      {/* Popup Card */}
+      {popupPosition && (
+        <PopupCard
+          position={popupPosition}
+          content={popupContent}
+          onClose={() => {
+            setPopupPosition(null);
+            setPopupContent('');
+            if (selectedElement) {
+              selectedElement.classList.remove('selected-sentence');
+              setSelectedElement(null);
+            }
+          }}
+          type={selectedElement?.classList.contains('equation') ? 'Equation' : 'Text'}
+        />
+      )}
       </>
     );
   }
@@ -465,7 +553,7 @@ export default function FormattedPDFViewer({
           box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
         }
       `}</style>
-      <div className="w-full flex flex-col items-center py-12 bg-gray-100">
+      <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>
       {pages.map((page, index) => (
         <div
           key={index}
@@ -499,6 +587,23 @@ export default function FormattedPDFViewer({
 
       {/* ... (Keep the existing Vision objects rendering logic for images/tables) ... */}
     </div>
+    
+    {/* Popup Card */}
+    {popupPosition && (
+      <PopupCard
+        position={popupPosition}
+        content={popupContent}
+        onClose={() => {
+          setPopupPosition(null);
+          setPopupContent('');
+          if (selectedElement) {
+            selectedElement.classList.remove('selected-sentence');
+            setSelectedElement(null);
+          }
+        }}
+        type={selectedElement?.classList.contains('equation') ? 'Equation' : 'Text'}
+      />
+    )}
     </>
   );
 }

@@ -68,13 +68,8 @@ def process_job(job:dict):
         # Process text through LLM for formatting
         if text_objects:
             print("Processing text through LLM...")
-            try:
-                formatted_content = tsx_from_chunks(text_objects)
-                print("LLM processing complete")
-            except Exception as llm_error:
-                print(f"LLM processing failed: {llm_error}")
-                # Create a fallback formatted content
-                formatted_content = f'<div class="academic-paper"><p><span class="clickable-sentence">Error processing content through AI. Please try again later.</span></p></div>'
+            formatted_content = tsx_from_chunks(text_objects)
+            print("LLM processing complete")
         else:
             formatted_content = ""
 
