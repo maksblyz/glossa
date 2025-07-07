@@ -295,7 +295,74 @@ export default function FormattedPDFViewer({
   // Show initial content until hydration is complete
   if (!isHydrated) {
     return (
-      <div className="w-full flex flex-col items-center py-12 bg-gray-100">
+      <>
+        <style jsx>{`
+          .clickable-sentence {
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            border-radius: 4px !important;
+            padding: 2px 4px !important;
+            margin: -2px -4px !important;
+            display: inline !important;
+            border: 1px solid transparent !important;
+            position: relative !important;
+            z-index: 1 !important;
+          }
+
+          .clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(-1px) !important;
+          }
+
+          .clickable-sentence.selected-sentence {
+            background-color: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+          }
+
+          .equation.clickable-sentence {
+            display: block !important;
+            padding: 6px 8px !important;
+            margin: 2px -8px !important;
+            border-radius: 6px !important;
+            border: 1px solid transparent !important;
+          }
+
+          .equation.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+          }
+
+          .equation.clickable-sentence.selected-sentence {
+            background-color: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+          }
+
+          blockquote.clickable-sentence {
+            display: block !important;
+            padding: 6px 8px !important;
+            margin: 2px -8px !important;
+            border-radius: 6px !important;
+            border: 1px solid transparent !important;
+          }
+
+          blockquote.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+          }
+
+          blockquote.clickable-sentence.selected-sentence {
+            background-color: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+          }
+        `}</style>
+        <div className="w-full flex flex-col items-center py-12 bg-gray-100">
         <div
           className="relative bg-white shadow-lg border border-gray-300"
           style={{
@@ -325,12 +392,80 @@ export default function FormattedPDFViewer({
           </div>
         )}
       </div>
+      </>
     );
   }
 
   // After hydration, show paginated content
   return (
-    <div className="w-full flex flex-col items-center py-12 bg-gray-100">
+    <>
+      <style jsx>{`
+        .clickable-sentence {
+          cursor: pointer !important;
+          transition: all 0.2s ease !important;
+          border-radius: 4px !important;
+          padding: 2px 4px !important;
+          margin: -2px -4px !important;
+          display: inline !important;
+          border: 1px solid transparent !important;
+          position: relative !important;
+          z-index: 1 !important;
+        }
+
+        .clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+          transform: translateY(-1px) !important;
+        }
+
+        .clickable-sentence.selected-sentence {
+          background-color: #e5e7eb !important;
+          border-color: #9ca3af !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .equation.clickable-sentence {
+          display: block !important;
+          padding: 6px 8px !important;
+          margin: 2px -8px !important;
+          border-radius: 6px !important;
+          border: 1px solid transparent !important;
+        }
+
+        .equation.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .equation.clickable-sentence.selected-sentence {
+          background-color: #e5e7eb !important;
+          border-color: #9ca3af !important;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        blockquote.clickable-sentence {
+          display: block !important;
+          padding: 6px 8px !important;
+          margin: 2px -8px !important;
+          border-radius: 6px !important;
+          border: 1px solid transparent !important;
+        }
+
+        blockquote.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        blockquote.clickable-sentence.selected-sentence {
+          background-color: #e5e7eb !important;
+          border-color: #9ca3af !important;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+      `}</style>
+      <div className="w-full flex flex-col items-center py-12 bg-gray-100">
       {pages.map((page, index) => (
         <div
           key={index}
@@ -364,5 +499,6 @@ export default function FormattedPDFViewer({
 
       {/* ... (Keep the existing Vision objects rendering logic for images/tables) ... */}
     </div>
+    </>
   );
 }
