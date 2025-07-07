@@ -61,28 +61,11 @@ def tsx_from_chunks(chunks: list[dict]) -> str:
         system_instruction=SYSTEM
     )
 
-    try:
-        resp = model.generate_content(
-            user_msg,
-            generation_config={
-                "temperature": 0.1,
-                "max_output_tokens": 4096,
-            },
-        )
-        
-        # Check if the response was blocked
-        if resp.candidates and resp.candidates[0].finish_reason == 2:
-            print(f"Warning: API response was blocked (finish_reason: 2). Response: {resp}")
-            # Return a fallback response
-            return f'<div class="academic-paper"><p><span class="clickable-sentence">Content processing was blocked by safety filters. Please try again or contact support if this persists.</span></p></div>'
-        
-        # Check if we have valid content
-        if not resp.text:
-            print(f"Warning: No text content in response. Response: {resp}")
-            return f'<div class="academic-paper"><p><span class="clickable-sentence">Unable to process content. Please try again.</span></p></div>'
-        
-        return resp.text.strip()
-        
-    except Exception as e:
-        print(f"Error in LLM processing: {e}")
-        return f'<div class="academic-paper"><p><span class="clickable-sentence">Error processing content: {str(e)}</span></p></div>'
+    resp = model.generate_content(
+        user_msg,
+        generation_config={
+            "temperature": 0.1,
+            "max_output_tokens": 4096,
+        },
+    )
+    return resp.text.strip()
