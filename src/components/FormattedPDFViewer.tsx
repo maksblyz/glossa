@@ -206,8 +206,10 @@ function splitContentIntoPages(content: string, maxHeight: number): Page[] {
 
 export default function FormattedPDFViewer({
   objects,
+  fileName,
 }: {
   objects: (FormattedObject | VisionObject)[];
+  fileName: string;
 }) {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
@@ -478,6 +480,7 @@ export default function FormattedPDFViewer({
             }
           }}
           type={selectedElement?.classList.contains('equation') ? 'Equation' : 'Text'}
+          fileName={fileName}
         />
       )}
       </>
@@ -602,6 +605,7 @@ export default function FormattedPDFViewer({
           }
         }}
         type={selectedElement?.classList.contains('equation') ? 'Equation' : 'Text'}
+        fileName={fileName}
       />
     )}
     </>

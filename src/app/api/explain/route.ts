@@ -1,12 +1,28 @@
+// route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// URL for the Python context server
+const PYTHON_API_URL = 'http://127.0.0.1:5328/context';
+
 export async function POST(request: NextRequest) {
   try {
-    const { content } = await request.json();
+    const body = await request.json();
+    console.log('Received request body:', body);
+    
+    const { content, fileName } = body;
 
-    if (!content) {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 });
+    console.log('Extracted content:', content);
+    console.log('Extracted fileName:', fileName);
+    console.log('Content type:', typeof content);
+    console.log('FileName type:', typeof fileName);
+
+    if (!content || !fileName) {
+      console.log('Validation failed - missing content or fileName');
+      console.log('Content is falsy:', !content);
+      console.log('FileName is falsy:', !fileName);
+      return NextResponse.json({ error: 'Content and fileName are required' }, { status: 400 });
     }
 
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -14,18 +30,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
     }
 
-    // Initialize the Google Generative AI with the API key
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    
-    // Get the model (using the same model as in llm_cleaner.py)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // ⭐️ 1. Fetch context from your Python service
+    let context = '';
+    try {
+      const contextResponse = await fetch(PYTHON_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, content }),
+      });
+      if (contextResponse.ok) {
+        const contextData = await contextResponse.json();
+        context = contextData.context;
+      }
+    } catch (e) {
+      console.warn('Could not fetch context from Python API:', e);
+      // Proceed without context if the service is down
+    }
 
-    const prompt = `Please explain the following content in a clear, concise way. If it's a mathematical formula, explain what it represents and its significance. If it's text, provide a brief explanation of the key concepts. Explain like you're explaining to a high school student. Limit your explanation to 3-5 sentences, and do not repeat the original content:
+    // ⭐️ 2. Create a new, context-aware prompt
+    const model = new GoogleGenerativeAI(GEMINI_API_KEY).getGenerativeModel({ model: "gemini-1.5-flash" });
 
-Content: "${content}"
+    const prompt = `Based on the following context from a document, please explain the "Content to Explain".
 
-Please provide a helpful, concise explanation that would be useful for someone studying this material.`;
+Context from the document:
+---
+${context || "No additional context available."}
+---
 
+Content to Explain: "${content}"
+
+Please provide a helpful, concise explanation for a high school student. Limit your explanation to 3-5 sentences and do not repeat the original content. Use LaTeX for mathematical symbols.`;
+
+    // ⭐️ 3. Generate content with the new prompt
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const explanation = response.text();
@@ -38,4 +74,4 @@ Please provide a helpful, concise explanation that would be useful for someone s
       { status: 500 }
     );
   }
-} 
+}
