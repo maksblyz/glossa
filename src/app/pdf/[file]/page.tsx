@@ -49,7 +49,7 @@ export default async function PDFStub({ params }: { params:  { file: string } })
 
         return (
             <main className="min-h-screen bg-neutral-100 flex flex-col items-center py-12">
-              <FormattedPDFViewer objects={objects} />
+              <FormattedPDFViewer objects={objects} fileName={decodedFile} />
             </main>
           );
     } catch (error) {

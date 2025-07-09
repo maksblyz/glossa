@@ -7,6 +7,7 @@ from text_extractor import TextExtractor
 from image_extractor import ImageExtractor
 from table_extractor import TableExtractor
 from llm_cleaner import tsx_from_chunks
+from embedding_service import EmbeddingService
 import re, json
 
 NULL_RE = re.compile(r'\u0000')
@@ -38,6 +39,7 @@ cursor = conn.cursor()
 text = TextExtractor()
 # images = ImageExtractor()
 # tables = TableExtractor()
+embedding_service = EmbeddingService()
 
 def download_blob(url: str) -> str:
     # download temp file
@@ -59,17 +61,20 @@ def process_job(job:dict):
         text_objects = text.extract(pdf_path)
         print("Text objects:", len(text_objects))
 
-        # Extract images and tables (vision-based)
-        # image_objects = images.extract(pdf_path)
-        # table_objects = tables.extract(pdf_path)
-        # print("Image objects:", len(image_objects))
-        # print("Table objects:", len(table_objects))
-
         # Process text through LLM for formatting
         if text_objects:
             print("Processing text through LLM...")
             formatted_content = tsx_from_chunks(text_objects)
             print("LLM processing complete")
+            
+            # ⭐️ Create and store embeddings for the formatted content
+            print("Creating embeddings...")
+            embedding_info = embedding_service.create_embeddings(
+                file_name=job["name"], 
+                html_content=formatted_content
+            )
+            print(f"Embeddings created: {embedding_info.get('chunk_count')} chunks in collection '{embedding_info.get('collection_name')}'")
+            
         else:
             formatted_content = ""
 

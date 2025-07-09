@@ -6,9 +6,10 @@ interface PopupCardProps {
   content: React.ReactNode;
   onClose: () => void;
   type?: string;
+  fileName: string;
 }
 
-const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type }) => {
+const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type, fileName }) => {
   const [explanation, setExplanation] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -18,10 +19,22 @@ const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type 
 
   useEffect(() => {
     const fetchExplanation = async () => {
-      if (!content) return;
+      if (!content || !fileName) {
+        console.log('Skipping fetch - missing content or fileName');
+        console.log('Content:', content);
+        console.log('FileName:', fileName);
+        return;
+      }
       
       setIsLoading(true);
       setError('');
+      
+      const requestBody = { 
+        content: String(content),
+        fileName: fileName 
+      };
+      
+      console.log('Sending request with body:', requestBody);
       
       try {
         const response = await fetch('/api/explain', {
@@ -29,10 +42,12 @@ const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type 
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ content: String(content) }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Response not ok:', response.status, errorText);
           throw new Error('Failed to get explanation');
         }
 
@@ -47,7 +62,7 @@ const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type 
     };
 
     fetchExplanation();
-  }, [content]);
+  }, [content, fileName]);
   
   return (
     <div
