@@ -1,7 +1,7 @@
 import { db } from "@/db"
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server"
 import { notFound, redirect } from "next/navigation"
-import Header from '@/components/Header'
+// import DashboardHeader from '@/components/DashboardHeader'
 import { PDFStub } from "@/components/PDFStub"
 import { KindeUser } from "@kinde-oss/kinde-auth-nextjs"
 
@@ -20,7 +20,7 @@ export default async function Page({ params }: { params: { fileid: string } }) {
     
     return (
         <>
-        <Header user={user} />
+        {/* DashboardHeader removed, now provided by layout */}
         <PDFStub/>
         </>
     )
