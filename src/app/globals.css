@@ -385,3 +385,39 @@ blockquote.clickable-sentence.selected-sentence {
   border-color: #9ca3af !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
 }
+
+/* Table styling to ensure proper sizing */
+.table-container {
+  width: 100% !important;
+  max-width: 600px !important;
+  margin: 1.5rem auto !important;
+}
+
+.table-content {
+  width: 100% !important;
+  max-width: 600px !important;
+  font-size: 0.875rem !important;
+  border-collapse: collapse !important;
+}
+
+.table-content th,
+.table-content td {
+  padding: 0.375rem !important;
+  border: 1px solid #d1d5db !important;
+  font-size: 0.875rem !important;
+}
+
+.table-content th {
+  background-color: #f9fafb !important;
+  font-weight: bold !important;
+  text-align: left !important;
+}
+
+.table-caption {
+  font-size: 0.875rem !important;
+  color: #6b7280 !important;
+  margin-top: 0.5rem !important;
+  font-style: italic !important;
+  text-align: center !important;
+  max-width: 600px !important;
+}
