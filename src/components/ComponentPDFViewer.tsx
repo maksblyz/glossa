@@ -366,6 +366,241 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
         );
       }
       
+    case 'InlineImage':
+      // Render inline image with minimal styling
+      return (
+        <img
+          key={`inlineimg-${props.src}`}
+          src={props.src}
+          alt={props.alt}
+          style={{
+            display: 'inline',
+            width: props.relative_width ? `${props.relative_width * 100}%` : '2em',
+            height: 'auto',
+            verticalAlign: 'middle',
+            margin: '0 0.25em',
+            borderRadius: 0,
+            maxHeight: '2em',
+          }}
+          className="inline-image-content"
+          onClick={(e) => onComponentClick(e, props.alt, 'InlineImage')}
+        />
+      );
+
+    case 'Image':
+      // Standalone image, moderate border-radius, flexible sizing
+      return (
+        <div
+          key={`image-${props.src}`}
+          className="image-container"
+          style={{ textAlign: 'center', margin: '1.5rem 0' }}
+        >
+          <div className="image-hover-wrapper clickable-sentence">
+            <img
+              src={props.src}
+              alt={props.alt}
+              style={{
+                width: props.relative_width ? `${props.relative_width * 100}%` : 'auto',
+                height: 'auto',
+                borderRadius: 4,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                maxWidth: '100%',
+                display: 'block',
+                margin: '0 auto',
+              }}
+              className="image-content"
+              onClick={(e) => onComponentClick(e, props.alt, 'Image')}
+            />
+            {props.caption && <div className="image-caption">{props.caption}</div>}
+          </div>
+        </div>
+      );
+
+    case 'ImageRow':
+      const images = props.images || [];
+      if (images.length === 1) {
+        // Single image: render as block image
+        const img = images[0];
+        return (
+          <div
+            key={img.src}
+            className="image-container"
+            style={{ textAlign: 'center', margin: '1.5rem 0' }}
+          >
+            <div className="image-hover-wrapper clickable-sentence">
+              <img
+                src={img.src}
+                alt={img.alt}
+                style={{
+                  width: '60%',
+                  height: 'auto',
+                  borderRadius: 4,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                  display: 'block',
+                  margin: '0 auto',
+                  maxWidth: '100%',
+                }}
+                className="image-content"
+                onClick={(e) => onComponentClick(e, img.alt, 'Image')}
+              />
+              {img.caption && <div className="image-caption">{img.caption}</div>}
+            </div>
+          </div>
+        );
+      }
+      // Multiple images: render as responsive row
+      return (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: '16px',
+            width: '100%',
+            maxWidth: '100%',
+            margin: '1.5rem 0',
+          }}
+        >
+          {images.map((img: any, idx: number) => (
+            <div
+              key={img.src || idx}
+              className="image-hover-wrapper clickable-sentence"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <img
+                src={img.src}
+                alt={img.alt}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  borderRadius: 4,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                  display: 'block',
+                  margin: 0,
+                  maxWidth: '100%',
+                }}
+                className="image-content"
+                onClick={(e) => onComponentClick(e, img.alt, 'Image')}
+              />
+              {img.caption && <div className="image-caption">{img.caption}</div>}
+            </div>
+          ))}
+        </div>
+      );
+      
+    case 'Table':
+      const headers = props.headers || [];
+      const rows = props.rows || [];
+      const caption = props.caption || props.tableCaption || null;
+      return (
+        <div
+          className="table-container"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%',
+            margin: '1.5rem 0',
+          }}
+        >
+          <div
+            className="table-hover-wrapper clickable-sentence"
+            onClick={(e) => onComponentClick(e, caption || 'Table', 'Table')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              borderRadius: 6,
+              border: '1px solid transparent',
+              transition: 'background 0.2s, border 0.2s, box-shadow 0.2s',
+              boxSizing: 'border-box',
+              padding: 0,
+              maxWidth: '700px',
+              width: 'auto',
+            }}
+          >
+            <table
+              className="table-content"
+              style={{
+                tableLayout: 'auto',
+                margin: 0,
+                minWidth: '350px',
+                maxWidth: '700px',
+                fontSize: '1.05em',
+              }}
+            >
+              {headers.length > 0 && (
+                <thead>
+                  <tr>
+                    {headers.map((header: string, index: number) => (
+                      <th key={index}>{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {rows.map((row: string[], rowIndex: number) => (
+                  <tr key={rowIndex}>
+                    {row.map((cell: string, cellIndex: number) => (
+                      <td key={cellIndex}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {caption && (
+              <div
+                className="table-caption clickable-sentence"
+                onClick={(e) => onComponentClick(e, caption, 'TableCaption')}
+                style={{
+                  fontSize: '0.98em',
+                  color: '#6b7280',
+                  margin: '0.2rem auto 0 auto',
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                  width: '100%',
+                  maxWidth: '700px',
+                  userSelect: 'text',
+                  cursor: 'pointer',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  display: 'block',
+                }}
+              >
+                {caption}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+
+    case 'TableCaption':
+      return (
+        <div
+          className="table-caption clickable-sentence"
+          onClick={(e) => onComponentClick(e, props.text, 'TableCaption')}
+          style={{
+            fontSize: '0.95em',
+            color: '#6b7280',
+            fontStyle: 'italic',
+            textAlign: 'center',
+            maxWidth: '100%',
+            padding: '6px 8px',
+            borderRadius: '6px',
+            margin: '0.5rem auto',
+          }}
+        >
+          {props.text}
+        </div>
+      );
+
     default:
       return (
         <div key={`unknown-${type}`} className="unknown-component">
@@ -414,7 +649,8 @@ export default function ComponentPDFViewer({
   // Handle click events on clickable elements
   const handleComponentClick = (event: React.MouseEvent, content: string, type: string) => {
     console.log('Component click event triggered');
-    const target = event.target as HTMLElement;
+    const target = (event.target as HTMLElement).closest('.clickable-sentence') as HTMLElement;
+    if (!target) return; // Exit if a clickable container isn't found
     console.log('Clicked target:', target);
     console.log('Target classes:', target.className);
     
@@ -578,6 +814,101 @@ export default function ComponentPDFViewer({
             border-color: #9ca3af !important;
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
           }
+
+          .image-container.clickable-sentence {
+            display: block !important;
+            padding: 8px !important;
+            margin: 4px -8px !important;
+            border-radius: 8px !important;
+            border: 1px solid transparent !important;
+            transition: all 0.2s ease !important;
+          }
+
+          .image-container.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+          }
+
+          .image-container.clickable-sentence.selected-sentence {
+            background-color: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+          }
+
+          .image-caption {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+            font-style: italic;
+            text-align: center;
+          }
+
+          .table-container.clickable-sentence {
+            display: block !important;
+            padding: 8px !important;
+            margin: 4px -8px !important;
+            border-radius: 8px !important;
+            border: 1px solid transparent !important;
+            transition: all 0.2s ease !important;
+          }
+
+          .table-container.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+          }
+
+          .table-container.clickable-sentence.selected-sentence {
+            background-color: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+          }
+
+          .table-caption {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+            font-style: italic;
+            text-align: center;
+          }
+
+          .image-content.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+            transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+          }
+          .table-container.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+            transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+          }
+
+          .image-hover-wrapper.clickable-sentence {
+            padding: 4px;
+            border-radius: 6px;
+            transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .image-hover-wrapper.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border: 1.5px solid #d1d5db !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+          }
+          .table-container.clickable-sentence {
+            padding: 8px;
+            border-radius: 6px;
+            transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+          }
+          .table-container.clickable-sentence:hover {
+            background-color: #f3f4f6 !important;
+            border: 1.5px solid #d1d5db !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+          }
         `}</style>
         <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>
           <div
@@ -696,6 +1027,101 @@ export default function ComponentPDFViewer({
           background-color: #e5e7eb !important;
           border-color: #9ca3af !important;
           box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .image-container.clickable-sentence {
+          display: block !important;
+          padding: 8px !important;
+          margin: 4px -8px !important;
+          border-radius: 8px !important;
+          border: 1px solid transparent !important;
+          transition: all 0.2s ease !important;
+        }
+
+        .image-container.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .image-container.clickable-sentence.selected-sentence {
+          background-color: #e5e7eb !important;
+          border-color: #9ca3af !important;
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .image-caption {
+          font-size: 0.875rem;
+          color: #6b7280;
+          margin-top: 0.5rem;
+          font-style: italic;
+          text-align: center;
+        }
+
+        .table-container.clickable-sentence {
+          display: block !important;
+          padding: 8px !important;
+          margin: 4px -8px !important;
+          border-radius: 8px !important;
+          border: 1px solid transparent !important;
+          transition: all 0.2s ease !important;
+        }
+
+        .table-container.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .table-container.clickable-sentence.selected-sentence {
+          background-color: #e5e7eb !important;
+          border-color: #9ca3af !important;
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .table-caption {
+          font-size: 0.875rem;
+          color: #6b7280;
+          margin-top: 0.5rem;
+          font-style: italic;
+          text-align: center;
+        }
+
+        .image-content.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+          transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+        }
+        .table-container.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+          transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+        }
+
+        .image-hover-wrapper.clickable-sentence {
+          padding: 4px;
+          border-radius: 6px;
+          transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .image-hover-wrapper.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border: 1.5px solid #d1d5db !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+        }
+        .table-container.clickable-sentence {
+          padding: 8px;
+          border-radius: 6px;
+          transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+        }
+        .table-container.clickable-sentence:hover {
+          background-color: #f3f4f6 !important;
+          border: 1.5px solid #d1d5db !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
         }
       `}</style>
       <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>

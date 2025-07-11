@@ -1,6 +1,7 @@
-import os, textwrap, json, requests
+import os, textwrap, json
+from openai import OpenAI
 SYSTEM = """
-You are an expert academic document analyzer. Your job is to convert raw text chunks into a structured JSON array describing components to render. You MUST follow all rules precisely.
+You are an expert academic document analyzer. Your job is to convert raw text chunks and vision objects into a structured JSON array describing components to render. You MUST follow all rules precisely and use all provided context.
 
 **Component Types:**
 1. **Heading**: Section titles and headers
@@ -27,79 +28,55 @@ You are an expert academic document analyzer. Your job is to convert raw text ch
    - `component`: "Code"
    - `props`: { "code": string, "language": string?, "inline": boolean }
 
+7. **Image**: Standalone images
+   - `component`: "Image"
+   - `props`: { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
+
+8. **InlineImage**: Images that are inline with text
+   - `component`: "InlineImage"
+   - `props`: { "src": string, "alt": string, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
+
+9. **ImageRow**: A row of grouped images (same group_id)
+   - `component`: "ImageRow"
+   - `props`: { "images": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
+
+10. **Table**: Data tables (no caption prop)
+   - `component`: "Table"
+   - `props`: { "headers": string[], "rows": string[][] }
+
+11. **TableCaption**: Table captions (for use immediately after a Table)
+   - `component`: "TableCaption"
+   - `props`: { "text": string }
+
 **Formatting Rules:**
 1. **Structure**: Return ONLY a valid JSON array of component objects
-2. **Clickable Units**: Every distinct unit (sentence, equation, blockquote) should be a separate component
+2. **Clickable Units**: Every distinct unit (sentence, equation, blockquote, image, table) should be a separate component
 3. **Sentence-Level Granularity**: Break paragraphs into individual sentences. Each sentence should be a separate "Text" component with style "sentence"
 4. **Headings**: Identify numbered section titles (e.g., "1.2 Supervised learning"). Extract section numbers
 5. **Equations**: Identify LaTeX equations and extract equation numbers if present
 6. **Lists**: Group consecutive list items into List components
-7. **Clean Text**: Remove page numbers and unnecessary whitespace
-8. **Semantic Grouping**: Group related content logically
-9. **LaTeX Matrix Formatting**: For matrices and vectors, use proper LaTeX syntax:
+7. **Images**: Use all provided context: If images share a `group_id`, output as an `ImageRow`. If `is_inline`, use `InlineImage`. If alone, use `Image`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout. Never hardcode layout—always use the context provided.
+8. **Tables**: If a table has a caption, output a `Table` component (without a caption prop) immediately followed by a `TableCaption` component with the caption text. Use the provided table information to create Table components with headers and rows only.
+9. **Clean Text**: Remove page numbers and unnecessary whitespace
+10. **Semantic Grouping**: Group related content logically
+11. **LaTeX Matrix Formatting**: For matrices and vectors, use proper LaTeX syntax:
    - Use `&` to separate columns within a row
    - Use `\\` to separate rows
    - For row vectors, use `[a & b & c]` format
    - For column vectors, use `\\begin{bmatrix} a \\\\ b \\\\ c \\end{bmatrix}` format
    - For matrices, use `\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}` format
    - Avoid vertical stacking unless the original is clearly a column vector
-10. **Inline Math Detection**: Wrap all mathematical expressions in LaTeX delimiters:
+12. **Inline Math Detection**: Wrap all mathematical expressions in LaTeX delimiters:
     - Variables with subscripts: `$f_c(x; \\theta)$` not `f_c(x; θ)`
     - Summations: `$\\sum_{c=1}^C f_c$` not `∑_{c=1}^C f_c`
     - Fractions: `$\\frac{a}{b}$` not `a/b`
     - Greek letters: `$\\theta$` not `θ`
     - Mathematical operators: `$\\leq$` not `≤`
     - Any mathematical notation should be wrapped in `$...$` for inline math
+13. **JSON String Escaping**: All backslashes (`\\`) in the output JSON string must be properly escaped. This is especially important for LaTeX code. For example, to represent the LaTeX `\\theta`, you must write it as `\\\\theta` in the final JSON. IMPORTANT: When writing LaTeX in JSON, double-escape all backslashes: `\\frac{a}{b}` becomes `\\\\frac{a}{b}` in the JSON output.
 
 **Output Format:**
-Return ONLY a valid JSON array (no markdown, no code blocks, no explanations). Example:
-[
-  {
-    "component": "Heading",
-    "props": {
-      "text": "1.2 Supervised Learning",
-      "level": 2,
-      "sectionNumber": "1.2"
-    }
-  },
-  {
-    "component": "Text",
-    "props": {
-      "text": "One way to define the problem is through supervised learning.",
-      "style": "sentence"
-    }
-  },
-  {
-    "component": "Text",
-    "props": {
-      "text": "Since $f_c(x; \\theta)$ returns the probability of class label $c$, we require $0 \\leq f_c \\leq 1$ for each $c$, and $\\sum_{c=1}^C f_c = 1$.",
-      "style": "sentence"
-    }
-  },
-  {
-    "component": "Equation", 
-    "props": {
-      "latex": "\\theta = \\underset{\\theta}{\\mathrm{argmin}} \\, \\mathcal{L}(\\theta)",
-      "number": "(1.6)",
-      "display": true
-    }
-  },
-  {
-    "component": "Equation",
-    "props": {
-      "latex": "\\sigma(\\mathbf{z})_i = \\frac{e^{z_i}}{\\sum_{j=1}^K e^{z_j}}",
-      "number": "(2.1)",
-      "display": true
-    }
-  },
-  {
-    "component": "Equation",
-    "props": {
-      "latex": "\\mathbf{z} = \\begin{bmatrix} z_1 & z_2 & \\cdots & z_K \\end{bmatrix}",
-      "display": true
-    }
-  }
-]
+Return ONLY a valid JSON array (no markdown, no code blocks, no explanations). Use the context provided for all layout and grouping decisions.
 """
 
 PROMPT = textwrap.dedent("""
@@ -111,38 +88,56 @@ Convert the following text chunks into a structured JSON array of components. Fo
 **Output JSON array:**
 """)
 
-def components_from_chunks(chunks: list[dict]) -> list[dict]:
+def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables: list[dict] = None) -> list[dict]:
     """Convert text chunks into structured component descriptions"""
     text_chunks = [c.get("content", "") for c in chunks if c.get("content")]
-    user_msg = PROMPT.format("\n".join(text_chunks))
-
-    DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
-    if not DEEPSEEK_API_KEY:
-        raise ValueError("DEEPSEEK_API_KEY environment variable not set")
-
-    # DeepSeek API endpoint
-    url = "https://api.deepseek.com/v1/chat/completions"
     
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # Prepare image and table information for LLM
+    image_info = ""
+    if images:
+        image_info = "\n\n**Images found in document:**\n"
+        for i, img in enumerate(images):
+            image_info += f"- Image {i+1}: {img.get('filename', 'unknown')} "
+            if 'cdn_url' in img:
+                image_info += f"(URL: {img['cdn_url']}) "
+            if 'relative_position' in img:
+                pos = img['relative_position']
+                image_info += f"(Position: x={pos['x']:.2f}, y={pos['y']:.2f}, w={pos['width']:.2f}, h={pos['height']:.2f}) "
+            if 'dimensions' in img:
+                dims = img['dimensions']
+                image_info += f"(Size: {dims['width']}x{dims['height']}px) "
+            image_info += "\n"
     
-    data = {
-        "model": "deepseek-chat",
-        "messages": [
+    table_info = ""
+    if tables:
+        table_info = "\n\n**Tables found in document:**\n"
+        for i, table in enumerate(tables):
+            table_info += f"- Table {i+1}: {len(table.get('content', {}).get('rows', []))} rows "
+            if 'bbox' in table:
+                table_info += f"(Position: {table['bbox']}) "
+            table_info += "\n"
+    
+    user_msg = PROMPT.format("\n".join(text_chunks) + image_info + table_info)
+
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+
+    # Initialize OpenAI client
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    
+    # Make API call to GPT-4o-mini
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": user_msg}
         ],
-        "temperature": 0.1,
-        "max_tokens": 8192
-    }
+        temperature=0.1,
+        max_tokens=8192
+    )
     
-    resp = requests.post(url, headers=headers, json=data)
-    resp.raise_for_status()
-    
-    response_data = resp.json()
-    resp = response_data["choices"][0]["message"]["content"]
+    resp = response.choices[0].message.content
     
     try:
         # Clean the response text - remove markdown code blocks if present
@@ -168,6 +163,11 @@ def components_from_chunks(chunks: list[dict]) -> list[dict]:
             print(f"Last 200 chars: {response_text[-200:]}")
             
             # Try to fix common JSON issues
+            # Fix invalid escape sequences - be more careful
+            import re
+            # Fix common LaTeX escape issues
+            response_text = re.sub(r'\\(?!["\\/bfnrt])', r'\\\\', response_text)
+            
             # Remove any trailing incomplete objects
             if response_text.rstrip().endswith(','):
                 response_text = response_text.rstrip()[:-1]
@@ -188,7 +188,20 @@ def components_from_chunks(chunks: list[dict]) -> list[dict]:
                             break
             
             # Try parsing again
-            components = json.loads(response_text)
+            try:
+                components = json.loads(response_text)
+            except json.JSONDecodeError as e2:
+                print(f"Still failed after fixes: {e2}")
+                # Return a simple fallback
+                return [
+                    {
+                        "component": "Text",
+                        "props": {
+                            "text": "Error: Could not parse document structure due to JSON formatting issues",
+                            "style": "paragraph"
+                        }
+                    }
+                ]
         
         # Validate that it's a list
         if not isinstance(components, list):
@@ -302,6 +315,45 @@ def tsx_from_chunks(chunks: list[dict]) -> str:
                 html_parts.append(f'<code class="clickable-sentence">{code}</code>')
             else:
                 html_parts.append(f'<pre><code class="clickable-sentence">{code}</code></pre>')
+                
+        elif comp_type == "Image":
+            src = props.get("src", "")
+            alt = props.get("alt", "")
+            caption = props.get("caption", "")
+            width = props.get("width", "")
+            height = props.get("height", "")
+            
+            html_parts.append(f'<div class="image-container clickable-sentence">')
+            html_parts.append(f'  <img src="{src}" alt="{alt}" width="{width}" height="{height}" class="image-content" style="max-width: 100%; height: auto; display: block; margin: 1rem auto;">')
+            if caption:
+                html_parts.append(f'  <div class="image-caption">{caption}</div>')
+            html_parts.append('</div>')
+            
+        elif comp_type == "Table":
+            headers = props.get("headers", [])
+            rows = props.get("rows", [])
+            
+            html_parts.append(f'<div class="table-container clickable-sentence">')
+            html_parts.append(f'  <table class="table-content" style="width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem;">')
+            
+            if headers:
+                html_parts.append(f'    <thead>')
+                html_parts.append(f'      <tr>')
+                for header in headers:
+                    html_parts.append(f'        <th style="border: 1px solid #d1d5db; padding: 0.5rem; background-color: #f9fafb; font-weight: bold; text-align: left;">{header}</th>')
+                html_parts.append(f'      </tr>')
+                html_parts.append(f'    </thead>')
+            
+            html_parts.append(f'    <tbody>')
+            for row in rows:
+                html_parts.append(f'      <tr>')
+                for cell in row:
+                    html_parts.append(f'        <td style="border: 1px solid #d1d5db; padding: 0.5rem; text-align: left;">{cell}</td>')
+                html_parts.append(f'      </tr>')
+            html_parts.append(f'    </tbody>')
+            html_parts.append(f'  </table>')
+            
+            html_parts.append('</div>')
     
     html_parts.append('</div>')
     return '\n'.join(html_parts)
