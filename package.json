@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "worker": "cd src/worker && python pdf_worker.py",
-    "test-llm": "cd src/worker && python test_llm.py"
+    "test-llm": "cd src/worker && python test_llm.py",
+    "test-components": "cd src/worker && python test_components.py"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

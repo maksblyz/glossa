@@ -1,5 +1,6 @@
 import { headers } from 'next/headers'
 import FormattedPDFViewer from "@/components/FormattedPDFViewer";
+import ComponentPDFViewer from "@/components/ComponentPDFViewer";
 
 async function fetchObjects(file: string) {
     const host = (await headers()).get('host')!;
@@ -47,11 +48,24 @@ export default async function PDFStub({ params }: { params:  { file: string } })
             )
         }
 
-        return (
-            <main className="min-h-screen bg-neutral-100 flex flex-col items-center py-12">
-              <FormattedPDFViewer objects={objects} fileName={decodedFile} />
-            </main>
-          );
+        // Check if we have component-based data
+        const hasComponents = objects.some((obj: any) => obj.type === 'components');
+        
+        if (hasComponents) {
+            // Use the new component-based viewer
+            return (
+                <main className="min-h-screen bg-neutral-100 flex flex-col items-center py-12">
+                    <ComponentPDFViewer objects={objects} fileName={decodedFile} />
+                </main>
+            );
+        } else {
+            // Fallback to the old formatted viewer for backward compatibility
+            return (
+                <main className="min-h-screen bg-neutral-100 flex flex-col items-center py-12">
+                    <FormattedPDFViewer objects={objects} fileName={decodedFile} />
+                </main>
+            );
+        }
     } catch (error) {
         console.error('Error in PDF page:', error);
         return (

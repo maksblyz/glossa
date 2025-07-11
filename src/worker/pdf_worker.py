@@ -6,7 +6,7 @@ import fitz
 from text_extractor import TextExtractor
 from image_extractor import ImageExtractor
 from table_extractor import TableExtractor
-from llm_cleaner import tsx_from_chunks
+from llm_cleaner import components_from_chunks, tsx_from_chunks
 from embedding_service import EmbeddingService
 import re, json
 
@@ -61,9 +61,13 @@ def process_job(job:dict):
         text_objects = text.extract(pdf_path)
         print("Text objects:", len(text_objects))
 
-        # Process text through LLM for formatting
+        # Process text through LLM for component structure
         if text_objects:
-            print("Processing text through LLM...")
+            print("Processing text through LLM for components...")
+            components = components_from_chunks(text_objects)
+            print(f"Generated {len(components)} components")
+            
+            # Convert components to HTML for backward compatibility with embeddings
             formatted_content = tsx_from_chunks(text_objects)
             print("LLM processing complete")
             
@@ -76,6 +80,7 @@ def process_job(job:dict):
             print(f"Embeddings created: {embedding_info.get('chunk_count')} chunks in collection '{embedding_info.get('collection_name')}'")
             
         else:
+            components = []
             formatted_content = ""
 
         # Get page dimensions
@@ -83,7 +88,25 @@ def process_job(job:dict):
         page_dims = {i + 1: (p.rect.width, p.rect.height) for i, p in enumerate(doc)}
         doc.close()
 
-        # Store formatted content
+        # Store components as structured data
+        if components:
+            cursor.execute(
+                """
+                INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    job["name"],
+                    1,  # Store components on page 1
+                    "components",
+                    json.dumps({"components": components}),
+                    json.dumps([0, 0, 0, 0]),  # Placeholder bbox
+                    page_dims[1][0] if page_dims else 612,
+                    page_dims[1][1] if page_dims else 792,
+                )
+            )
+
+        # Also store formatted HTML for backward compatibility
         if formatted_content:
             cursor.execute(
                 """
