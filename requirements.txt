@@ -61,6 +61,7 @@ numpy==2.3.1
 omegaconf==2.3.0
 onnx==1.18.0
 onnxruntime==1.22.0
+openai==1.57.0
 opencv-python==4.11.0.86
 opencv-python-headless==4.11.0.86
 openpyxl==3.1.5

@@ -8,6 +8,7 @@ from image_extractor import ImageExtractor
 from table_extractor import TableExtractor
 from llm_cleaner import components_from_chunks, tsx_from_chunks
 from embedding_service import EmbeddingService
+from image_upload_service import ImageUploadService
 import re, json
 
 NULL_RE = re.compile(r'\u0000')
@@ -37,9 +38,10 @@ cursor = conn.cursor()
 
 # Extractors
 text = TextExtractor()
-# images = ImageExtractor()
-# tables = TableExtractor()
+images = ImageExtractor()
+tables = TableExtractor()
 embedding_service = EmbeddingService()
+image_upload_service = ImageUploadService()
 
 def download_blob(url: str) -> str:
     # download temp file
@@ -61,10 +63,23 @@ def process_job(job:dict):
         text_objects = text.extract(pdf_path)
         print("Text objects:", len(text_objects))
 
+        # Extract images and tables
+        image_objects = images.extract(pdf_path)
+        print("Image objects:", len(image_objects))
+        
+        table_objects = tables.extract(pdf_path)
+        print("Table objects:", len(table_objects))
+
+        # Upload images to CDN
+        if image_objects:
+            print("Uploading images to CDN...")
+            image_objects = image_upload_service.upload_images_batch(image_objects)
+            print(f"Uploaded {len([img for img in image_objects if 'cdn_url' in img])} images")
+
         # Process text through LLM for component structure
         if text_objects:
             print("Processing text through LLM for components...")
-            components = components_from_chunks(text_objects)
+            components = components_from_chunks(text_objects, image_objects, table_objects)
             print(f"Generated {len(components)} components")
             
             # Convert components to HTML for backward compatibility with embeddings
@@ -124,35 +139,35 @@ def process_job(job:dict):
                 )
             )
 
-        # # Store images and tables
-        # vision_objects = image_objects + table_objects
-        # if vision_objects:
-        #     # Add page dimensions to objects that don't have them
-        #     for obj in vision_objects:
-        #         if "page_width" not in obj:
-        #             w, h = page_dims[obj["page"]]
-        #             obj["page_width"] = w
-        #             obj["page_height"] = h
+        # Store images and tables
+        vision_objects = image_objects + table_objects
+        if vision_objects:
+            # Add page dimensions to objects that don't have them
+            for obj in vision_objects:
+                if "page_width" not in obj:
+                    w, h = page_dims[obj["page"]]
+                    obj["page_width"] = w
+                    obj["page_height"] = h
 
-        #     psycopg2.extras.execute_values(
-        #         cursor,
-        #         """ 
-        #         INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
-        #         VALUES %s
-        #         """,
-        #         [
-        #             (
-        #                 job["name"],
-        #                 obj["page"],
-        #                 obj["type"],
-        #                 safe_json(obj.get("content", {})),
-        #                 json.dumps(obj.get("bbox", [])),
-        #                 obj["page_width"],
-        #                 obj["page_height"],
-        #             )
-        #             for obj in vision_objects
-        #         ],
-        #     )
+            psycopg2.extras.execute_values(
+                cursor,
+                """ 
+                INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
+                VALUES %s
+                """,
+                [
+                    (
+                        job["name"],
+                        obj["page"],
+                        obj["type"],
+                        safe_json(obj.get("content", {})),
+                        json.dumps(obj.get("bbox", [])),
+                        obj["page_width"],
+                        obj["page_height"],
+                    )
+                    for obj in vision_objects
+                ],
+            )
 
         conn.commit()
         print("Successfully processed", job["name"])
@@ -162,12 +177,16 @@ def process_job(job:dict):
         conn.rollback()
         raise
     finally:
-        # Clean up temporary file
+        # Clean up temporary files
         if pdf_path and os.path.exists(pdf_path):
             try:
                 os.remove(pdf_path)
             except Exception as e:
                 print(f"Warning: Could not remove temp file {pdf_path}: {str(e)}")
+        
+        # Clean up extracted images
+        if 'image_objects' in locals():
+            image_upload_service.cleanup_local_files(image_objects)
     
     print("Done: ", job["name"])
 
