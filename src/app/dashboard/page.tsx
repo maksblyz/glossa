@@ -2,6 +2,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server"
 import { redirect } from 'next/navigation'
 import { db } from "@/db"
 import Dashboard from "@/components/Dashboard"
+// import DashboardHeader from '@/components/DashboardHeader'
 
 const Page = async () => {
     const { getUser} = getKindeServerSession()
@@ -18,7 +19,10 @@ const Page = async () => {
     if(!dbUser) redirect('/auth-callback?origin=dashboard')
 
 
-    return <Dashboard/>
+    return <>
+      {/* DashboardHeader removed, now provided by layout */}
+      <Dashboard/>
+    </>
 }
 
 export default Page

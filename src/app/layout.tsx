@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { cn } from '@/lib/utils'
 import "./globals.css";
 import 'katex/dist/katex.min.css'; 
-import NavBar from "@/components/NavBar"
+// import NavBar from "@/components/NavBar"
 import Providers from "@/components/Providers";
 
 import "react-loading-skeleton/dist/skeleton.css"
@@ -26,7 +26,7 @@ export default function RootLayout({
         <body
           className={cn('min-h-screen font-sans antialiased grainy'
           )}>
-            <NavBar />
+          {/* NavBar removed from global layout */}
           {children}
         </body>
       </Providers>
