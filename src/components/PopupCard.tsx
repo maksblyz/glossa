@@ -31,7 +31,8 @@ const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type,
       
       const requestBody = { 
         content: String(content),
-        fileName: fileName 
+        fileName: fileName,
+        type: type,
       };
       
       console.log('Sending request with body:', requestBody);
@@ -62,7 +63,7 @@ const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type,
     };
 
     fetchExplanation();
-  }, [content, fileName]);
+  }, [content, fileName, type]);
   
   return (
     <div

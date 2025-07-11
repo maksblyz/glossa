@@ -648,9 +648,12 @@ export default function ComponentPDFViewer({
 
   // Handle click events on clickable elements
   const handleComponentClick = (event: React.MouseEvent, content: string, type: string) => {
-    console.log('Component click event triggered');
+    console.log('Component click event triggered', { content, type, event });
     const target = (event.target as HTMLElement).closest('.clickable-sentence') as HTMLElement;
-    if (!target) return; // Exit if a clickable container isn't found
+    if (!target) {
+      console.log('No clickable-sentence target found for event', event);
+      return; // Exit if a clickable container isn't found
+    }
     console.log('Clicked target:', target);
     console.log('Target classes:', target.className);
     
@@ -667,7 +670,10 @@ export default function ComponentPDFViewer({
     const rect = target.getBoundingClientRect();
     const pageContainer = (event.currentTarget as HTMLElement).closest('.page-container')?.getBoundingClientRect();
     
-    if (!pageContainer) return;
+    if (!pageContainer) {
+      console.log('No pageContainer found for event', event);
+      return;
+    }
     
     // PDF page width is 816px (8.5 inches), popup should be ~480px (5 inches)
     const popupWidth = 480;
@@ -700,11 +706,10 @@ export default function ComponentPDFViewer({
     const y = rect.top + (rect.height / 2) - 100;
     const yAdjusted = Math.max(20, Math.min(y, window.innerHeight - 200));
     
+    console.log('Setting popup position:', { x, y: yAdjusted, side });
+    console.log('Setting popup content:', content);
     setPopupPosition({ x, y: yAdjusted, side });
     setPopupContent(content);
-    
-    console.log('Setting popup position:', { x, y, side });
-    console.log('Setting popup content:', content);
   };
 
   // Handle clicking outside popup to close it
@@ -941,6 +946,7 @@ export default function ComponentPDFViewer({
         
         {/* Popup Card */}
         {popupPosition && (
+          console.log('Rendering PopupCard with', { popupPosition, popupContent }),
           <PopupCard
             position={popupPosition}
             content={popupContent}
@@ -1159,6 +1165,7 @@ export default function ComponentPDFViewer({
       
       {/* Popup Card */}
       {popupPosition && (
+        console.log('Rendering PopupCard with', { popupPosition, popupContent }),
         <PopupCard
           position={popupPosition}
           content={popupContent}
