@@ -1,7 +1,7 @@
 // route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { OpenAI } from 'openai';
 
 // URL for the Python context server
 const PYTHON_API_URL = 'http://127.0.0.1:5328/context';
@@ -10,27 +10,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('Received request body:', body);
-    
-    const { content, fileName } = body;
-
+    const { content, fileName, type } = body;
     console.log('Extracted content:', content);
     console.log('Extracted fileName:', fileName);
-    console.log('Content type:', typeof content);
-    console.log('FileName type:', typeof fileName);
-
+    console.log('Extracted type:', type);
     if (!content || !fileName) {
       console.log('Validation failed - missing content or fileName');
-      console.log('Content is falsy:', !content);
-      console.log('FileName is falsy:', !fileName);
       return NextResponse.json({ error: 'Content and fileName are required' }, { status: 400 });
     }
 
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
-    }
-
-    // ⭐️ 1. Fetch context from your Python service
+    // Fetch context as before
     let context = '';
     try {
       const contextResponse = await fetch(PYTHON_API_URL, {
@@ -44,31 +33,45 @@ export async function POST(request: NextRequest) {
       }
     } catch (e) {
       console.warn('Could not fetch context from Python API:', e);
-      // Proceed without context if the service is down
     }
 
-    // ⭐️ 2. Create a new, context-aware prompt
-    const model = new GoogleGenerativeAI(GEMINI_API_KEY).getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Build the prompt as before (reuse your existing logic)
+    let prompt = '';
+    if (type === 'Image') {
+      prompt = `The following is an image from a document. Please describe what the image likely shows, its context, and any important details. If an alt text or caption is provided, use it for context.\n\nImage description or alt text: "${content}"\n\nContext from the document:\n---\n${context || "No additional context available."}\n---`;
+    } else if (type === 'Table') {
+      prompt = `The following is a data table from a document. Please summarize what the table shows, explain the meaning of the columns and rows, and highlight any patterns or insights. If a caption is provided, use it for context.\n\nTable content:\n${content}\n\nContext from the document:\n---\n${context || "No additional context available."}\n---`;
+    } else if (type === 'TableCaption') {
+      prompt = `The following is a table caption from a document. Please explain what this caption means and how it relates to the table.\n\nTable caption: "${content}"\n\nContext from the document:\n---\n${context || "No additional context available."}\n---`;
+    } else {
+      prompt = `Based on the following context from a document, please explain the "Content to Explain".\n\nContext from the document:\n---\n${context || "No additional context available."}\n---\n\nContent to Explain: "${content}"\n\nPlease provide a helpful, concise explanation for a high school student. Limit your explanation to 3-5 sentences and do not repeat the original content. Use LaTeX for mathematical symbols.`;
+    }
 
-    const prompt = `Based on the following context from a document, please explain the "Content to Explain".
+    // ⭐️ Use OpenAI GPT-4o-mini
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+    }
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-Context from the document:
----
-${context || "No additional context available."}
----
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are an expert academic explainer. Answer clearly and concisely.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 1024,
+    });
 
-Content to Explain: "${content}"
-
-Please provide a helpful, concise explanation for a high school student. Limit your explanation to 3-5 sentences and do not repeat the original content. Use LaTeX for mathematical symbols.`;
-
-    // ⭐️ 3. Generate content with the new prompt
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const explanation = response.text();
+    const explanation = completion.choices[0].message.content;
 
     return NextResponse.json({ explanation });
   } catch (error) {
-    console.error('Error calling Gemini API:', error);
+    console.error('Error calling OpenAI API:', error);
+    if (error instanceof Error && error.stack) {
+      console.error(error.stack);
+    }
     return NextResponse.json(
       { error: 'Failed to get explanation' },
       { status: 500 }
