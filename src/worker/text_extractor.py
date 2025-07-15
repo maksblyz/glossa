@@ -14,7 +14,7 @@ class TextExtractor(BaseExtractor):
         blocks = []
         for page_num, page in enumerate(doc, 1):
             # Extract text blocks from the page as a dictionary
-            page_blocks = page.get_text("dict", flags=fitz.TEXT_INHIBIT_SPACES)["blocks"]
+            page_blocks = page.get_text("dict")["blocks"]
             for block in page_blocks:
                 # We are only interested in text blocks (type 0)
                 if block.get("type", 1) != 0:
@@ -23,9 +23,9 @@ class TextExtractor(BaseExtractor):
                 # Reconstruct the text content of the block
                 block_text = ""
                 for line in block.get("lines", []):
-                    for span in line.get("spans", []):
-                        block_text += span.get("text", "")
-                    block_text += " "  # Add space between lines
+                    # Join spans within a line with a space
+                    line_text = " ".join([span.get("text", "") for span in line.get("spans", [])])
+                    block_text += line_text + " " # Add the reconstructed line and a space
 
                 # Skip empty blocks
                 if not block_text.strip():

@@ -214,7 +214,7 @@ export default function ComponentPDFViewer({
         .clickable-sentence:hover { background-color: #f3f4f6; border-color: #d1d5db; }
         .clickable-sentence.selected-sentence { background-color: #e5e7eb; border-color: #9ca3af; }
         .page-header { position: absolute; top: 20px; right: 20px; font-size: 0.8rem; color: #9ca3af; }
-        .academic-paper { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.4; text-align: justify; hyphens: auto; color: black; }
+        .academic-paper { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.4; text-align: justify; hyphens: auto; color: black; overflow-wrap: break-word;}
       `}</style>
       <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>
         {pages.map((page) => (
