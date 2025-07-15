@@ -60,23 +60,24 @@ class ImageUploadService:
             return None
     
     def upload_images_batch(self, image_objects: List[Dict]) -> List[Dict]:
-        """Upload multiple images and return updated objects with CDN URLs or local fallback URLs"""
-        uploaded_images = []
+        """Upload multiple images and tables and return updated objects with CDN URLs or local fallback URLs"""
+        uploaded_objects = []
         
-        for img_obj in image_objects:
-            if img_obj.get("type") == "image" and "filepath" in img_obj:
-                filepath = img_obj["filepath"]
-                filename = img_obj["filename"]
+        for obj in image_objects:
+            if obj.get("type") in ["image", "table"] and "filepath" in obj:
+                filepath = obj["filepath"]
+                filename = obj["filename"]
+                obj_type = obj.get("type", "image")
                 
                 # Upload to CDN
                 cdn_url = self.upload_to_vercel_blob(filepath, filename)
                 
                 if cdn_url:
-                    # Update the image object with CDN URL
-                    updated_obj = img_obj.copy()
+                    # Update the object with CDN URL
+                    updated_obj = obj.copy()
                     updated_obj["cdn_url"] = cdn_url
-                    uploaded_images.append(updated_obj)
-                    print(f"Successfully uploaded {filename} to {cdn_url}")
+                    uploaded_objects.append(updated_obj)
+                    print(f"Successfully uploaded {obj_type} {filename} to {cdn_url}")
                 else:
                     # Local fallback: if file exists, set local static URL
                     if os.path.exists(filepath):
@@ -84,25 +85,26 @@ class ImageUploadService:
                         # e.g. /pdf-assets/{pdf_name}/{filename}
                         pdf_name = os.path.basename(os.path.dirname(filepath))
                         local_url = f"/pdf-assets/{pdf_name}/{filename}"
-                        img_obj["cdn_url"] = local_url
-                        print(f"Using local fallback for {filename}: {local_url}")
+                        obj["cdn_url"] = local_url
+                        print(f"Using local fallback for {obj_type} {filename}: {local_url}")
                     else:
-                        img_obj["upload_failed"] = True
-                        print(f"Failed to upload {filename} and no local fallback found")
-                    uploaded_images.append(img_obj)
+                        obj["upload_failed"] = True
+                        print(f"Failed to upload {obj_type} {filename} and no local fallback found")
+                    uploaded_objects.append(obj)
             else:
-                uploaded_images.append(img_obj)
+                uploaded_objects.append(obj)
         
-        return uploaded_images
+        return uploaded_objects
     
     def cleanup_local_files(self, image_objects: List[Dict]):
-        """Clean up local image files after upload"""
-        for img_obj in image_objects:
-            if img_obj.get("type") == "image" and "filepath" in img_obj:
-                filepath = img_obj["filepath"]
+        """Clean up local image and table files after upload"""
+        for obj in image_objects:
+            if obj.get("type") in ["image", "table"] and "filepath" in obj:
+                filepath = obj["filepath"]
+                obj_type = obj.get("type", "image")
                 try:
                     if os.path.exists(filepath):
                         os.remove(filepath)
-                        print(f"Cleaned up {filepath}")
+                        print(f"Cleaned up {obj_type} {filepath}")
                 except Exception as e:
-                    print(f"Error cleaning up {filepath}: {e}") 
+                    print(f"Error cleaning up {obj_type} {filepath}: {e}") 

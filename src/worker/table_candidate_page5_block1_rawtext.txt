@@ -1,0 +1,19 @@
+en our base model
+ning cost of any of
+LEU score of 41.0,
+training cost of the
+sh-to-French used
+heckpoints, which
+0 checkpoints. We
+e hyperparameters
+utput length during
+osts to other model
+ions used to train a
+ate of the sustained
+ed our base model
+translation on the
+ous section, but no
+d value dimensions,
+While single-head
+many heads.
+ctively.

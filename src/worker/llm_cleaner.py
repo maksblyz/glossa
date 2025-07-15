@@ -1,5 +1,5 @@
-import os, textwrap, json
-from openai import OpenAI
+import os, textwrap, json, asyncio, re
+import httpx
 SYSTEM = """
 You are an expert academic document analyzer. Your job is to convert raw text chunks and vision objects into a structured JSON array describing components to render. You MUST follow all rules precisely and use all provided context.
 
@@ -22,31 +22,31 @@ You are an expert academic document analyzer. Your job is to convert raw text ch
 
 5. **Blockquote**: Quotes and callouts
    - `component`: "Blockquote"
-   - `props`: { "text": string, "citation": string? }
+   - `props": { "text": string, "citation": string? }
 
 6. **Code**: Code blocks or inline code
-   - `component`: "Code"
-   - `props`: { "code": string, "language": string?, "inline": boolean }
+   - `component": "Code"
+   - `props": { "code": string, "language": string?, "inline": boolean }
 
 7. **Image**: Standalone images
-   - `component`: "Image"
-   - `props`: { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
+   - `component": "Image"
+   - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
 
 8. **InlineImage**: Images that are inline with text
-   - `component`: "InlineImage"
-   - `props`: { "src": string, "alt": string, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
+   - `component": "InlineImage"
+   - `props": { "src": string, "alt": string, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
 
 9. **ImageRow**: A row of grouped images (same group_id)
-   - `component`: "ImageRow"
-   - `props`: { "images": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
+   - `component": "ImageRow"
+   - `props": { "images": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
 
-10. **Table**: Data tables (no caption prop)
-   - `component`: "Table"
-   - `props`: { "headers": string[], "rows": string[][] }
+10. **Table**: Data tables (treated as images)
+   - `component": "Table"
+   - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
 
-11. **TableCaption**: Table captions (for use immediately after a Table)
-   - `component`: "TableCaption"
-   - `props`: { "text": string }
+11. **TableRow**: A row of grouped tables (same group_id)
+   - `component": "TableRow"
+   - `props": { "tables": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
 
 **Formatting Rules:**
 1. **Structure**: Return ONLY a valid JSON array of component objects
@@ -56,7 +56,7 @@ You are an expert academic document analyzer. Your job is to convert raw text ch
 5. **Equations**: Identify LaTeX equations and extract equation numbers if present
 6. **Lists**: Group consecutive list items into List components
 7. **Images**: Use all provided context: If images share a `group_id`, output as an `ImageRow`. If `is_inline`, use `InlineImage`. If alone, use `Image`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout. Never hardcode layout—always use the context provided.
-8. **Tables**: If a table has a caption, output a `Table` component (without a caption prop) immediately followed by a `TableCaption` component with the caption text. Use the provided table information to create Table components with headers and rows only.
+8. **Tables**: Tables are now treated as images. Use all provided context: If tables share a `group_id`, output as a `TableRow`. If `is_inline`, use `Table` with `is_inline: true`. If alone, use `Table`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout. Never hardcode layout—always use the context provided.
 9. **Clean Text**: Remove page numbers and unnecessary whitespace
 10. **Semantic Grouping**: Group related content logically
 11. **LaTeX Matrix Formatting**: For matrices and vectors, use proper LaTeX syntax:
@@ -88,10 +88,124 @@ Convert the following text chunks into a structured JSON array of components. Fo
 **Output JSON array:**
 """)
 
+MAX_OUTPUT = 1200
+CHUNK_SIZE = 10
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+
+async def fetch_completion(client, prompt):
+    headers = {
+        "Authorization": f"Bearer {os.environ['DEEPSEEK_API_KEY']}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": MAX_OUTPUT,
+        "temperature": 0.1,
+    }
+    resp = await client.post(DEEPSEEK_API_URL, headers=headers, json=payload)
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+def smart_chunkify(chunks, max_chars=1200):
+    groups = []
+    current = []
+    current_len = 0
+    for chunk in chunks:
+        chunk_str = chunk.get("content", "")
+        if current and (current_len + len(chunk_str)) > max_chars:
+            groups.append(current)
+            current = []
+            current_len = 0
+        current.append(chunk)
+        current_len += len(chunk_str)
+    if current:
+        groups.append(current)
+    return groups
+
+def build_figure_mapping(text_chunks, image_objects, table_objects=None):
+    """
+    Build a mapping from figure/table references (e.g., 'Figure 1', 'Table 1') to image src URLs.
+    Uses order of appearance per page if captions are not available.
+    Returns: dict mapping 'Figure 1' -> image src, 'Table 1' -> table src
+    """
+    figure_map = {}
+    # Find all figure and table references in text
+    figure_ref_re = re.compile(r"(Figure|Fig\.?)[ ]?(\d+)", re.IGNORECASE)
+    table_ref_re = re.compile(r"(Table|Tab\.?)[ ]?(\d+)", re.IGNORECASE)
+    
+    # Group images by page
+    images_by_page = {}
+    for img in image_objects:
+        if img.get('type') != 'image':
+            continue
+        page = img.get('page', 1)
+        images_by_page.setdefault(page, []).append(img)
+    
+    # Group tables by page
+    tables_by_page = {}
+    if table_objects:
+        for table in table_objects:
+            if table.get('type') != 'table':
+                continue
+            page = table.get('page', 1)
+            tables_by_page.setdefault(page, []).append(table)
+    
+    # For each text chunk, look for figure and table references
+    for chunk in text_chunks:
+        page = chunk.get('page', 1)
+        content = chunk.get('content', '')
+        
+        # Handle figure references
+        for match in figure_ref_re.finditer(content):
+            fig_num = int(match.group(2))
+            ref = match.group(0)
+            # Map by order of appearance on the page
+            imgs = images_by_page.get(page, [])
+            if 0 < fig_num <= len(imgs):
+                img = imgs[fig_num - 1]
+                src = img.get('cdn_url') or img.get('filename')
+                if src:
+                    figure_map[ref] = src
+        
+        # Handle table references
+        for match in table_ref_re.finditer(content):
+            table_num = int(match.group(2))
+            ref = match.group(0)
+            # Map by order of appearance on the page
+            tables = tables_by_page.get(page, [])
+            if 0 < table_num <= len(tables):
+                table = tables[table_num - 1]
+                src = table.get('cdn_url') or table.get('filename')
+                if src:
+                    figure_map[ref] = src
+    
+    return figure_map
+
+def build_prompt(text_chunks, image_info, table_info, figure_map=None):
+    prompt = PROMPT.format("\n".join(text_chunks) + image_info + table_info)
+    if figure_map:
+        prompt += "\n\n**Figure Mapping:**\n"
+        for ref, src in figure_map.items():
+            prompt += f"- {ref}: {src}\n"
+        prompt += "\nIf you see a reference to a figure (e.g., 'Figure 1') or table (e.g., 'Table 1'), use the corresponding image/table src from the mapping above for the 'src' property."
+    return prompt
+
+async def process_chunks(chunk_groups, image_info, table_info, figure_map=None):
+    async with httpx.AsyncClient(http2=True, timeout=60) as client:
+        tasks = [fetch_completion(client, build_prompt(group, image_info, table_info, figure_map)) for group in chunk_groups]
+        results = await asyncio.gather(*tasks)
+    return results
+
 def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables: list[dict] = None) -> list[dict]:
     """Convert text chunks into structured component descriptions"""
-    text_chunks = [c.get("content", "") for c in chunks if c.get("content")]
-    
+    text_chunks = [c for c in chunks if c.get("content")]
+    if not text_chunks:
+        return []
+
     # Prepare image and table information for LLM
     image_info = ""
     if images:
@@ -107,53 +221,42 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
                 dims = img['dimensions']
                 image_info += f"(Size: {dims['width']}x{dims['height']}px) "
             image_info += "\n"
-    
+
     table_info = ""
     if tables:
         table_info = "\n\n**Tables found in document:**\n"
         for i, table in enumerate(tables):
-            table_info += f"- Table {i+1}: {len(table.get('content', {}).get('rows', []))} rows "
-            if 'bbox' in table:
-                table_info += f"(Position: {table['bbox']}) "
+            table_info += f"- Table {i+1}: {table.get('filename', 'unknown')} "
+            if 'cdn_url' in table:
+                table_info += f"(URL: {table['cdn_url']}) "
+            if 'relative_position' in table:
+                pos = table['relative_position']
+                table_info += f"(Position: x={pos['x']:.2f}, y={pos['y']:.2f}, w={pos['width']:.2f}, h={pos['height']:.2f}) "
+            if 'dimensions' in table:
+                dims = table['dimensions']
+                table_info += f"(Size: {dims['width']}x{dims['height']}px) "
             table_info += "\n"
-    
-    user_msg = PROMPT.format("\n".join(text_chunks) + image_info + table_info)
 
-    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY environment variable not set")
+    # Use smart chunking
+    chunk_groups = smart_chunkify(text_chunks, max_chars=1200)
+    # Each group is a list of chunk dicts; convert to list of strings for prompt
+    chunk_groups_str = [[c.get("content", "") for c in group] for group in chunk_groups]
+    # Build figure mapping
+    figure_map = build_figure_mapping(text_chunks, images or [], tables) if images or tables else None
+    loop = asyncio.get_event_loop()
+    llm_results = loop.run_until_complete(process_chunks(chunk_groups_str, image_info, table_info, figure_map))
 
-    # Initialize OpenAI client
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    
-    # Make API call to GPT-4o-mini
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": user_msg}
-        ],
-        temperature=0.1,
-        max_tokens=8192
-    )
-    
-    resp = response.choices[0].message.content
-    
-    try:
-        # Clean the response text - remove markdown code blocks if present
+    # Merge and parse all results
+    all_components = []
+    for resp in llm_results:
         response_text = resp.strip()
-        
-        # Remove markdown code blocks if present
         if response_text.startswith('```json'):
-            response_text = response_text[7:]  # Remove ```json
+            response_text = response_text[7:]
         if response_text.startswith('```'):
-            response_text = response_text[3:]  # Remove ```
+            response_text = response_text[3:]
         if response_text.endswith('```'):
-            response_text = response_text[:-3]  # Remove trailing ```
-        
+            response_text = response_text[:-3]
         response_text = response_text.strip()
-        
-        # Try to parse the JSON response
         try:
             components = json.loads(response_text)
         except json.JSONDecodeError as e:
@@ -161,21 +264,12 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
             print(f"Response length: {len(response_text)}")
             print(f"First 200 chars: {response_text[:200]}")
             print(f"Last 200 chars: {response_text[-200:]}")
-            
-            # Try to fix common JSON issues
-            # Fix invalid escape sequences - be more careful
             import re
-            # Fix common LaTeX escape issues
             response_text = re.sub(r'\\(?!["\\/bfnrt])', r'\\\\', response_text)
-            
-            # Remove any trailing incomplete objects
             if response_text.rstrip().endswith(','):
                 response_text = response_text.rstrip()[:-1]
-            
-            # Try to find the last complete object
             last_complete = response_text.rfind('}')
             if last_complete > 0:
-                # Find the matching opening bracket
                 bracket_count = 0
                 for i in range(last_complete, -1, -1):
                     if response_text[i] == '}':
@@ -183,17 +277,13 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
                     elif response_text[i] == '{':
                         bracket_count -= 1
                         if bracket_count == 0:
-                            # Found the start of the last complete object
                             response_text = response_text[:i] + ']'
                             break
-            
-            # Try parsing again
             try:
                 components = json.loads(response_text)
             except json.JSONDecodeError as e2:
                 print(f"Still failed after fixes: {e2}")
-                # Return a simple fallback
-                return [
+                components = [
                     {
                         "component": "Text",
                         "props": {
@@ -202,46 +292,31 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
                         }
                     }
                 ]
-        
-        # Validate that it's a list
         if not isinstance(components, list):
-            raise ValueError("Response is not a list")
-            
-        # Validate each component has required fields
+            components = [
+                {
+                    "component": "Text",
+                    "props": {
+                        "text": "Error: LLM did not return a list of components",
+                        "style": "paragraph"
+                    }
+                }
+            ]
+        # --- Post-processing: fix 'src': 'Figure1' etc. ---
+        if figure_map:
+            for comp in components:
+                if comp.get('component') in ['Image', 'Table']:
+                    src = comp.get('props', {}).get('src', '')
+                    # Try to match 'Figure1', 'Fig. 1', etc.
+                    for ref, url in figure_map.items():
+                        if src.replace(' ', '').lower() == ref.replace(' ', '').lower() or src.lower() == ref.lower().replace(' ', ''):
+                            comp['props']['src'] = url
+        # --- End post-processing ---
         for i, component in enumerate(components):
-            if not isinstance(component, dict):
-                raise ValueError(f"Component {i} is not a dictionary")
-            if "component" not in component:
-                raise ValueError(f"Component {i} missing 'component' field")
-            if "props" not in component:
-                raise ValueError(f"Component {i} missing 'props' field")
-                
-        return components
-        
-    except json.JSONDecodeError as e:
-        print(f"Failed to parse JSON response: {e}")
-        print(f"Raw response: {resp}")
-        # Return a fallback structure
-        return [
-            {
-                "component": "Text",
-                "props": {
-                    "text": "Error: Could not parse document structure",
-                    "style": "paragraph"
-                }
-            }
-        ]
-    except Exception as e:
-        print(f"Error processing components: {e}")
-        return [
-            {
-                "component": "Text", 
-                "props": {
-                    "text": "Error: Could not process document",
-                    "style": "paragraph"
-                }
-            }
-        ]
+            if not isinstance(component, dict) or "component" not in component or "props" not in component:
+                continue
+            all_components.append(component)
+    return all_components
 
 # Keep the old function for backward compatibility
 def tsx_from_chunks(chunks: list[dict]) -> str:
@@ -330,29 +405,13 @@ def tsx_from_chunks(chunks: list[dict]) -> str:
             html_parts.append('</div>')
             
         elif comp_type == "Table":
-            headers = props.get("headers", [])
-            rows = props.get("rows", [])
+            src = props.get("src", "")
+            alt = props.get("alt", "")
+            width = props.get("width", "")
+            height = props.get("height", "")
             
             html_parts.append(f'<div class="table-container clickable-sentence">')
-            html_parts.append(f'  <table class="table-content" style="width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem;">')
-            
-            if headers:
-                html_parts.append(f'    <thead>')
-                html_parts.append(f'      <tr>')
-                for header in headers:
-                    html_parts.append(f'        <th style="border: 1px solid #d1d5db; padding: 0.5rem; background-color: #f9fafb; font-weight: bold; text-align: left;">{header}</th>')
-                html_parts.append(f'      </tr>')
-                html_parts.append(f'    </thead>')
-            
-            html_parts.append(f'    <tbody>')
-            for row in rows:
-                html_parts.append(f'      <tr>')
-                for cell in row:
-                    html_parts.append(f'        <td style="border: 1px solid #d1d5db; padding: 0.5rem; text-align: left;">{cell}</td>')
-                html_parts.append(f'      </tr>')
-            html_parts.append(f'    </tbody>')
-            html_parts.append(f'  </table>')
-            
+            html_parts.append(f'  <img src="{src}" alt="{alt}" width="{width}" height="{height}" class="table-content" style="max-width: 100%; height: auto; display: block; margin: 1rem auto;">')
             html_parts.append('</div>')
     
     html_parts.append('</div>')
