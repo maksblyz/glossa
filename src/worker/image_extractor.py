@@ -60,9 +60,9 @@ class ImageExtractor(BaseExtractor):
                         img_width, img_height = img_pil.size
                         # For grouping: store by page and rel_y
                         page_groups[page_number].append({
-                            "type": "image",
-                            "bbox": list(bbox),
-                            "page": page_number,
+                        "type": "image",
+                        "bbox": list(bbox),
+                        "page": page_number,
                             "xref": xref,
                             "filename": filename,
                             "filepath": filepath,
