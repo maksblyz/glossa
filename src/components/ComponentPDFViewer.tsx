@@ -32,20 +32,81 @@ type PageData = {
 
 // --- Component Rendering Logic ---
 
-// Groups sentences into paragraphs for better text flow
+// Groups sentences into paragraphs for better text flow and handles all component types
 function renderComponentsWithParagraphs(components: Component[], onComponentClick: (event: React.MouseEvent, content: string, type: string) => void): React.ReactElement[] {
   const result: React.ReactElement[] = [];
   let currentParagraph: Component[] = [];
-  
-  // Filter out image/table components that will be rendered from visionObjects
-  const textBasedComponents = components.filter(c => !['Image', 'ImageRow', 'Table', 'TableCaption'].includes(c.component));
 
-  for (let i = 0; i < textBasedComponents.length; i++) {
-    const component = textBasedComponents[i];
+  // Group images and tables by group_id for side-by-side rendering
+  const groupedComponents: Component[] = [];
+  const imageGroups: { [groupId: string]: Component[] } = {};
+  const tableGroups: { [groupId: string]: Component[] } = {};
+
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i];
     
-    if (component.component === 'Text' && component.props.style === 'sentence') {
-      currentParagraph.push(component);
+    if (component.component === 'Image') {
+      const groupId = component.props.group_id || `single-${i}`;
+      if (!imageGroups[groupId]) {
+        imageGroups[groupId] = [];
+      }
+      imageGroups[groupId].push(component);
+    } else if (component.component === 'Table') {
+      const groupId = component.props.group_id || `single-${i}`;
+      if (!tableGroups[groupId]) {
+        tableGroups[groupId] = [];
+      }
+      tableGroups[groupId].push(component);
     } else {
+      // For non-image/table components, add them directly
+      groupedComponents.push(component);
+    }
+  }
+
+  // Add grouped images and tables
+  Object.values(imageGroups).forEach(group => {
+    if (group.length === 1) {
+      // Single image
+      groupedComponents.push(group[0]);
+    } else {
+      // Multiple images in a group - create a group component
+      groupedComponents.push({
+        component: 'ImageGroup',
+        props: { images: group }
+      });
+    }
+  });
+
+  Object.values(tableGroups).forEach(group => {
+    if (group.length === 1) {
+      // Single table
+      groupedComponents.push(group[0]);
+    } else {
+      // Multiple tables in a group - create a group component
+      groupedComponents.push({
+        component: 'TableGroup',
+        props: { tables: group }
+      });
+    }
+  });
+
+  // Sort components by their original order (approximate)
+  groupedComponents.sort((a, b) => {
+    const aIndex = components.findIndex(c => c === a);
+    const bIndex = components.findIndex(c => c === b);
+    return aIndex - bIndex;
+  });
+
+  // Now render the grouped components
+  for (let i = 0; i < groupedComponents.length; i++) {
+    const component = groupedComponents[i];
+    
+    // Handle different component types
+    if (component.component === 'Text' && component.props.style === 'sentence') {
+      // Group sentences into paragraphs
+      currentParagraph.push(component);
+    } else if (component.component === 'Image' || component.component === 'Table' || component.component === 'ImageGroup' || component.component === 'TableGroup') {
+      // Flush current paragraph before rendering image/table
       if (currentParagraph.length > 0) {
         result.push(
           <p key={`paragraph-${i}`} className="text-component">
@@ -59,10 +120,85 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
         );
         currentParagraph = [];
       }
+      
+      // Render image, table, or group
+      if (component.component === 'Image') {
+        result.push(
+          <div key={`image-${i}`} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center' }}>
+            <img
+              src={component.props.src || ''}
+              alt={component.props.alt || 'PDF Figure'}
+              className="clickable-sentence image-content"
+              style={{ maxWidth: '60%', height: 'auto', display: 'block', margin: '0 auto' }}
+              onClick={e => onComponentClick(e, component.props.alt || 'Image', 'Image')}
+            />
+          </div>
+        );
+      } else if (component.component === 'Table') {
+        result.push(
+          <div key={`table-${i}`} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center' }}>
+            <img
+              src={component.props.src || ''}
+              alt={component.props.alt || 'PDF Table'}
+              className="clickable-sentence table-content"
+              style={{ maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
+              onClick={e => onComponentClick(e, component.props.alt || 'Table', 'Table')}
+            />
+          </div>
+        );
+      } else if (component.component === 'ImageGroup') {
+        result.push(
+          <div key={`image-group-${i}`} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            {component.props.images.map((img: Component, imgIndex: number) => (
+              <img
+                key={`grouped-image-${imgIndex}`}
+                src={img.props.src || ''}
+                alt={img.props.alt || 'PDF Figure'}
+                className="clickable-sentence image-content"
+                style={{ maxWidth: '45%', height: 'auto', display: 'block' }}
+                onClick={e => onComponentClick(e, img.props.alt || 'Image', 'Image')}
+              />
+            ))}
+          </div>
+        );
+      } else if (component.component === 'TableGroup') {
+        result.push(
+          <div key={`table-group-${i}`} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            {component.props.tables.map((table: Component, tableIndex: number) => (
+              <img
+                key={`grouped-table-${tableIndex}`}
+                src={table.props.src || ''}
+                alt={table.props.alt || 'PDF Table'}
+                className="clickable-sentence table-content"
+                style={{ maxWidth: '45%', height: 'auto', display: 'block' }}
+                onClick={e => onComponentClick(e, table.props.alt || 'Table', 'Table')}
+              />
+            ))}
+          </div>
+        );
+      }
+    } else {
+      // Flush current paragraph before rendering other components
+      if (currentParagraph.length > 0) {
+        result.push(
+          <p key={`paragraph-${i}`} className="text-component">
+            {currentParagraph.map((sentence, index) => (
+              <React.Fragment key={`sentence-${i}-${index}`}>
+                {renderComponentJSX(sentence, onComponentClick)}
+                {index < currentParagraph.length - 1 && ' '}
+              </React.Fragment>
+            ))}
+          </p>
+        );
+        currentParagraph = [];
+      }
+      
+      // Render other components (Heading, FigureTitle, FigureCaption, etc.)
       result.push(<div key={`component-${i}`}>{renderComponentJSX(component, onComponentClick)}</div>);
     }
   }
   
+  // Flush any remaining paragraph
   if (currentParagraph.length > 0) {
     result.push(
       <p key="paragraph-final" className="text-component">
@@ -99,6 +235,18 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
             onClick={(e) => onComponentClick(e, props.text, 'Text')}
             dangerouslySetInnerHTML={renderMath(props.text)}
           />
+        );
+    case 'FigureTitle':
+        return (
+          <div key={`figure-title-${props.text}`} className="figure-title-component">
+            <strong>{props.text}</strong>
+          </div>
+        );
+    case 'FigureCaption':
+        return (
+          <div key={`figure-caption-${props.text}`} className="figure-caption-component">
+            <em>{props.text}</em>
+          </div>
         );
     case 'Equation':
         const renderedMath = katex.renderToString(props.latex, { displayMode: props.display !== false, throwOnError: false });
@@ -215,6 +363,8 @@ export default function ComponentPDFViewer({
         .clickable-sentence.selected-sentence { background-color: #e5e7eb; border-color: #9ca3af; }
         .page-header { position: absolute; top: 20px; right: 20px; font-size: 0.8rem; color: #9ca3af; }
         .academic-paper { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.4; text-align: justify; hyphens: auto; color: black; overflow-wrap: break-word;}
+        .figure-title-component { text-align: center; font-weight: bold; margin: 1rem 0 0.5rem 0; }
+        .figure-caption-component { text-align: center; font-style: italic; margin: 0.5rem 0 1rem 0; color: #666; }
       `}</style>
       <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>
         {pages.map((page) => (
@@ -233,88 +383,8 @@ export default function ComponentPDFViewer({
               <div className="page-number">{page.pageNumber}</div>
             </div>
             <div className="academic-paper">
-              {/* Render text components */}
+              {/* Render all components in order (text, images, tables, etc.) */}
               {renderComponentsWithParagraphs(page.components, handleComponentClick)}
-              {/* Render vision objects as blocks, in order */}
-              {/* Group images by group_id for this page */}
-              {(() => {
-                const imageGroups = Object.values(
-                  page.visionObjects
-                    .filter(obj => obj.type === 'image')
-                    .reduce((acc, img) => {
-                      const group = img.group_id || img.content?.group_id || img.id;
-                      if (!acc[group]) acc[group] = [];
-                      acc[group].push(img);
-                      return acc;
-                    }, {} as Record<string, DbObject[]>)
-                );
-                return imageGroups.map((group, idx) => (
-                  group.length === 1 ? (
-                    <div key={group[0].id} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center' }}>
-                      <img
-                        src={group[0].content?.cdn_url || ''}
-                        alt={group[0].content?.alt || 'PDF Figure'}
-                        className="clickable-sentence image-content"
-                        style={{ maxWidth: '60%', height: 'auto', display: 'block', margin: '0 auto' }}
-                        onClick={e => handleComponentClick(e, group[0].content?.alt || 'Image', 'Image')}
-                      />
-                    </div>
-                  ) : (
-                    <div key={group.map(img => img.id).join('-')} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center', gap: '2rem' }}>
-                      {group.map(img => (
-                        <img
-                          key={img.id}
-                          src={img.content?.cdn_url || ''}
-                          alt={img.content?.alt || 'PDF Figure'}
-                          className="clickable-sentence image-content"
-                          style={{ maxWidth: '30%', height: 'auto', display: 'block' }}
-                          onClick={e => handleComponentClick(e, img.content?.alt || 'Image', 'Image')}
-                        />
-                      ))}
-                    </div>
-                  )
-                ));
-              })()}
-              
-              {/* Render tables as images */}
-              {(() => {
-                const tableGroups = Object.values(
-                  page.visionObjects
-                    .filter(obj => obj.type === 'table')
-                    .reduce((acc, table) => {
-                      const group = table.group_id || table.content?.group_id || table.id;
-                      if (!acc[group]) acc[group] = [];
-                      acc[group].push(table);
-                      return acc;
-                    }, {} as Record<string, DbObject[]>)
-                );
-                return tableGroups.map((group, idx) => (
-                  group.length === 1 ? (
-                    <div key={group[0].id} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center' }}>
-                      <img
-                        src={group[0].content?.cdn_url || ''}
-                        alt={group[0].content?.alt || 'PDF Table'}
-                        className="clickable-sentence table-content"
-                        style={{ maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
-                        onClick={e => handleComponentClick(e, group[0].content?.alt || 'Table', 'Table')}
-                      />
-                    </div>
-                  ) : (
-                    <div key={group.map(table => table.id).join('-')} style={{ margin: '1.5rem 0', display: 'flex', justifyContent: 'center', gap: '2rem' }}>
-                      {group.map(table => (
-                        <img
-                          key={table.id}
-                          src={table.content?.cdn_url || ''}
-                          alt={table.content?.alt || 'PDF Table'}
-                          className="clickable-sentence table-content"
-                          style={{ maxWidth: '40%', height: 'auto', display: 'block' }}
-                          onClick={e => handleComponentClick(e, table.content?.alt || 'Table', 'Table')}
-                        />
-                      ))}
-                    </div>
-                  )
-                ));
-              })()}
             </div>
           </div>
         ))}
