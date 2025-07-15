@@ -28,23 +28,31 @@ You are an expert academic document analyzer. Your job is to convert raw text ch
    - `component": "Code"
    - `props": { "code": string, "language": string?, "inline": boolean }
 
-7. **Image**: Standalone images
-   - `component": "Image"
-   - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
+7. **FigureTitle**: Titles for figures (e.g., "Figure 1: The Transformer - model architecture")
+   - `component": "FigureTitle"
+   - `props": { "text": string, "figureNumber": string?, "type": "figure" | "table" | "image" }
 
-8. **InlineImage**: Images that are inline with text
+8. **FigureCaption**: Captions/descriptions for figures
+   - `component": "FigureCaption"
+   - `props": { "text": string, "figureNumber": string?, "type": "figure" | "table" | "image" }
+
+9. **Image**: Standalone images (positioned after title, before caption)
+   - `component": "Image"
+   - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean, "figureNumber": string? }
+
+10. **InlineImage**: Images that are inline with text
    - `component": "InlineImage"
    - `props": { "src": string, "alt": string, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
 
-9. **ImageRow**: A row of grouped images (same group_id)
+11. **ImageRow**: A row of grouped images (same group_id)
    - `component": "ImageRow"
    - `props": { "images": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
 
-10. **Table**: Data tables (treated as images)
+12. **Table**: Data tables (positioned after title, before caption)
    - `component": "Table"
-   - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
+   - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean, "figureNumber": string? }
 
-11. **TableRow**: A row of grouped tables (same group_id)
+13. **TableRow**: A row of grouped tables (same group_id)
    - `component": "TableRow"
    - `props": { "tables": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
 
@@ -55,25 +63,32 @@ You are an expert academic document analyzer. Your job is to convert raw text ch
 4. **Headings**: Identify numbered section titles (e.g., "1.2 Supervised learning"). Extract section numbers
 5. **Equations**: Identify LaTeX equations and extract equation numbers if present
 6. **Lists**: Group consecutive list items into List components
-7. **Images**: Use all provided context: If images share a `group_id`, output as an `ImageRow`. If `is_inline`, use `InlineImage`. If alone, use `Image`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout. Never hardcode layout—always use the context provided.
-8. **Tables**: Tables are now treated as images. Use all provided context: If tables share a `group_id`, output as a `TableRow`. If `is_inline`, use `Table` with `is_inline: true`. If alone, use `Table`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout. Never hardcode layout—always use the context provided.
-9. **Clean Text**: Remove page numbers and unnecessary whitespace
-10. **Semantic Grouping**: Group related content logically
-11. **LaTeX Matrix Formatting**: For matrices and vectors, use proper LaTeX syntax:
-   - Use `&` to separate columns within a row
-   - Use `\\` to separate rows
-   - For row vectors, use `[a & b & c]` format
-   - For column vectors, use `\\begin{bmatrix} a \\\\ b \\\\ c \\end{bmatrix}` format
-   - For matrices, use `\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}` format
-   - Avoid vertical stacking unless the original is clearly a column vector
-12. **Inline Math Detection**: Wrap all mathematical expressions in LaTeX delimiters:
-    - Variables with subscripts: `$f_c(x; \\theta)$` not `f_c(x; θ)`
-    - Summations: `$\\sum_{c=1}^C f_c$` not `∑_{c=1}^C f_c`
-    - Fractions: `$\\frac{a}{b}$` not `a/b`
-    - Greek letters: `$\\theta$` not `θ`
-    - Mathematical operators: `$\\leq$` not `≤`
-    - Any mathematical notation should be wrapped in `$...$` for inline math
-13. **JSON String Escaping**: All backslashes (`\\`) in the output JSON string must be properly escaped. This is especially important for LaTeX code. For example, to represent the LaTeX `\\theta`, you must write it as `\\\\theta` in the final JSON. IMPORTANT: When writing LaTeX in JSON, double-escape all backslashes: `\\frac{a}{b}` becomes `\\\\frac{a}{b}` in the JSON output.
+7. **Figure Titles and Captions**: Identify figure/table titles (e.g., "Figure 1: The Transformer") and captions (descriptive text below figures). Create separate `FigureTitle` and `FigureCaption` components. Extract figure numbers when present.
+8. **Image Positioning**: Position images after their titles and before their captions. Use `figureNumber` to link images with their titles/captions. IMPORTANT: Preserve the original `group_id` from the image information provided. If images share a `group_id`, they will be rendered side by side. If `is_inline`, use `InlineImage`. If alone, use `Image`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout.
+9. **Table Positioning**: Position tables after their titles and before their captions. Use `figureNumber` to link tables with their titles/captions. IMPORTANT: Preserve the original `group_id` from the table information provided. If tables share a `group_id`, they will be rendered side by side. If `is_inline`, use `Table` with `is_inline: true`. If alone, use `Table`. Use `relative_x`, `relative_y`, `relative_width`, and `relative_height` for layout.
+10. **Deduplication Rules**: 
+    - Do NOT repeat the same image/table on multiple pages. Each image/table should appear only once, at its most contextually appropriate location.
+    - If a figure/table appears on multiple pages, only include it on the page where its title/caption appears.
+    - Do NOT create duplicate FigureTitle or FigureCaption components with the same text.
+    - Each figure/table should have exactly one title and optionally one caption.
+11. **Image/Table Coverage**: For every image and table listed in the image/table information section, you MUST output a corresponding Image or Table component with the same `src` and `group_id`. If multiple images/tables share a `group_id`, output all of them as separate Image/Table components with the same `group_id`, in the order listed. Do NOT omit any image/table from the output.
+12. **Clean Text**: Remove page numbers and unnecessary whitespace
+13. **Semantic Grouping**: Group related content logically
+14. **LaTeX Matrix Formatting**: For matrices and vectors, use proper LaTeX syntax:
+    - Use `&` to separate columns within a row
+    - Use `\\` to separate rows
+    - For row vectors, use `[a & b & c]` format
+    - For column vectors, use `\\begin{bmatrix} a \\\\ b \\\\ c \\end{bmatrix}` format
+    - For matrices, use `\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}` format
+    - Avoid vertical stacking unless the original is clearly a column vector
+15. **Inline Math Detection**: Wrap all mathematical expressions in LaTeX delimiters:
+     - Variables with subscripts: `$f_c(x; \\theta)$` not `f_c(x; θ)`
+     - Summations: `$\\sum_{c=1}^C f_c$` not `∑_{c=1}^C f_c`
+     - Fractions: `$\\frac{a}{b}$` not `a/b`
+     - Greek letters: `$\\theta$` not `θ`
+     - Mathematical operators: `$\\leq$` not `≤`
+     - Any mathematical notation should be wrapped in `$...$` for inline math
+16. **JSON String Escaping**: All backslashes (`\\`) in the output JSON string must be properly escaped. This is especially important for LaTeX code. For example, to represent the LaTeX `\\theta`, you must write it as `\\\\theta` in the final JSON. IMPORTANT: When writing LaTeX in JSON, double-escape all backslashes: `\\frac{a}{b}` becomes `\\\\frac{a}{b}` in the JSON output.
 
 **Output Format:**
 Return ONLY a valid JSON array (no markdown, no code blocks, no explanations). Use the context provided for all layout and grouping decisions.
@@ -185,6 +200,79 @@ def build_figure_mapping(text_chunks, image_objects, table_objects=None):
     
     return figure_map
 
+
+def deduplicate_components(components):
+    """
+    Remove duplicate components to ensure each figure/table appears only once.
+    Uses a simple approach: track unique src URLs and only allow each to appear once.
+    """
+    if not components:
+        return components
+    
+    # Track seen items globally (across all pages)
+    seen_images = set()  # src URLs
+    seen_tables = set()  # src URLs
+    seen_titles = set()  # text
+    seen_captions = set()  # text
+    
+    deduplicated_components = []
+    
+    # Process components in order
+    for comp in components:
+        comp_type = comp.get('component', '')
+        props = comp.get('props', {})
+        
+        if comp_type == 'Image':
+            src = props.get('src', '')
+            if src and src not in seen_images:
+                seen_images.add(src)
+                deduplicated_components.append(comp)
+            # Skip if already seen
+            elif src and src in seen_images:
+                continue
+            else:
+                deduplicated_components.append(comp)
+                
+        elif comp_type == 'Table':
+            src = props.get('src', '')
+            if src and src not in seen_tables:
+                seen_tables.add(src)
+                deduplicated_components.append(comp)
+            # Skip if already seen
+            elif src and src in seen_tables:
+                continue
+            else:
+                deduplicated_components.append(comp)
+                
+        elif comp_type == 'FigureTitle':
+            text = props.get('text', '')
+            if text and text not in seen_titles:
+                seen_titles.add(text)
+                deduplicated_components.append(comp)
+            # Skip if already seen
+            elif text and text in seen_titles:
+                continue
+            else:
+                deduplicated_components.append(comp)
+                
+        elif comp_type == 'FigureCaption':
+            text = props.get('text', '')
+            if text and text not in seen_captions:
+                seen_captions.add(text)
+                deduplicated_components.append(comp)
+            # Skip if already seen
+            elif text and text in seen_captions:
+                continue
+            else:
+                deduplicated_components.append(comp)
+                
+        else:
+            # For other component types, just add them
+            deduplicated_components.append(comp)
+    
+    return deduplicated_components
+
+
 def build_prompt(text_chunks, image_info, table_info, figure_map=None):
     prompt = PROMPT.format("\n".join(text_chunks) + image_info + table_info)
     if figure_map:
@@ -220,6 +308,8 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
             if 'dimensions' in img:
                 dims = img['dimensions']
                 image_info += f"(Size: {dims['width']}x{dims['height']}px) "
+            if 'group_id' in img:
+                image_info += f"(Group: {img['group_id']}) "
             image_info += "\n"
 
     table_info = ""
@@ -235,6 +325,8 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
             if 'dimensions' in table:
                 dims = table['dimensions']
                 table_info += f"(Size: {dims['width']}x{dims['height']}px) "
+            if 'group_id' in table:
+                table_info += f"(Group: {table['group_id']}) "
             table_info += "\n"
 
     # Use smart chunking
@@ -265,20 +357,30 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
             print(f"First 200 chars: {response_text[:200]}")
             print(f"Last 200 chars: {response_text[-200:]}")
             import re
+            # Fix LaTeX escaping issues - be more aggressive
             response_text = re.sub(r'\\(?!["\\/bfnrt])', r'\\\\', response_text)
+            # Fix common LaTeX issues
+            response_text = re.sub(r'\\\\\\', r'\\\\', response_text)  # Triple backslash to double
+            response_text = re.sub(r'\\\\\\', r'\\\\', response_text)  # Do it again for quadruple
+            # Remove trailing commas
             if response_text.rstrip().endswith(','):
                 response_text = response_text.rstrip()[:-1]
-            last_complete = response_text.rfind('}')
-            if last_complete > 0:
-                bracket_count = 0
-                for i in range(last_complete, -1, -1):
-                    if response_text[i] == '}':
-                        bracket_count += 1
-                    elif response_text[i] == '{':
-                        bracket_count -= 1
-                        if bracket_count == 0:
-                            response_text = response_text[:i] + ']'
-                            break
+            # Try to fix incomplete JSON by finding the last complete object
+            try:
+                # Find the last complete object
+                last_complete = response_text.rfind('}')
+                if last_complete > 0:
+                    bracket_count = 0
+                    for i in range(last_complete, -1, -1):
+                        if response_text[i] == '}':
+                            bracket_count += 1
+                        elif response_text[i] == '{':
+                            bracket_count -= 1
+                            if bracket_count == 0:
+                                response_text = response_text[:i] + ']'
+                                break
+            except:
+                pass
             try:
                 components = json.loads(response_text)
             except json.JSONDecodeError as e2:
@@ -316,6 +418,63 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
             if not isinstance(component, dict) or "component" not in component or "props" not in component:
                 continue
             all_components.append(component)
+
+    # --- Post-processing: ensure every extracted image/table is present ---
+    # Add any missing images
+    if images:
+        for img in images:
+            src = img.get('cdn_url') or img.get('filename')
+            group_id = img.get('group_id')
+            found = any(
+                c.get('component') == 'Image' and
+                c.get('props', {}).get('src') == src and
+                c.get('props', {}).get('group_id') == group_id
+                for c in all_components
+            )
+            if not found:
+                # Add missing image as an Image component
+                all_components.append({
+                    'component': 'Image',
+                    'props': {
+                        'src': src,
+                        'alt': img.get('alt', img.get('filename', '')),
+                        'relative_x': img.get('relative_position', {}).get('x', 0),
+                        'relative_y': img.get('relative_position', {}).get('y', 0),
+                        'relative_width': img.get('relative_position', {}).get('width', 0),
+                        'relative_height': img.get('relative_position', {}).get('height', 0),
+                        'group_id': group_id,
+                        'is_inline': img.get('is_inline', False)
+                    }
+                })
+    # Add any missing tables
+    if tables:
+        for table in tables:
+            src = table.get('cdn_url') or table.get('filename')
+            group_id = table.get('group_id')
+            found = any(
+                c.get('component') == 'Table' and
+                c.get('props', {}).get('src') == src and
+                c.get('props', {}).get('group_id') == group_id
+                for c in all_components
+            )
+            if not found:
+                all_components.append({
+                    'component': 'Table',
+                    'props': {
+                        'src': src,
+                        'alt': table.get('alt', table.get('filename', '')),
+                        'relative_x': table.get('relative_position', {}).get('x', 0),
+                        'relative_y': table.get('relative_position', {}).get('y', 0),
+                        'relative_width': table.get('relative_position', {}).get('width', 0),
+                        'relative_height': table.get('relative_position', {}).get('height', 0),
+                        'group_id': group_id,
+                        'is_inline': table.get('is_inline', False)
+                    }
+                })
+
+    # Apply deduplication to remove any remaining duplicates
+    all_components = deduplicate_components(all_components)
+    
     return all_components
 
 # Keep the old function for backward compatibility
