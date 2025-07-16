@@ -90,8 +90,8 @@ importers:
         specifier: ^3.3.2
         version: 3.3.2
       openai:
-        specifier: ^5.9.0
-        version: 5.9.0(ws@8.18.2(bufferutil@4.0.9))(zod@3.25.62)
+        specifier: ^5.9.2
+        version: 5.9.2(ws@8.18.2(bufferutil@4.0.9))(zod@3.25.62)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -2235,8 +2235,8 @@ packages:
   obuf@1.1.2:
     resolution: {integrity: sha512-PX1wu0AmAdPqOL1mWhqmlOd8kOIZQwGZw6rh7uby9fTc5lhaOWFLX3I6R1hrF9k3zUY40e6igsLGkDXK92LJNg==}
 
-  openai@5.9.0:
-    resolution: {integrity: sha512-cmLC0pfqLLhBGxE4aZPyRPjydgYCncppV2ClQkKmW79hNjCvmzkfhz8rN5/YVDmjVQlFV+UsF1JIuNjNgeagyQ==}
+  openai@5.9.2:
+    resolution: {integrity: sha512-d7t/lRkwZpSwIk7GW3EHRSGAlsuoi1WL6VhCO02raEzZO2ahEVAbWn3WmOcpeh9zF6xF9weJXoVeDkWJRz+SHA==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
@@ -4905,7 +4905,7 @@ snapshots:
 
   obuf@1.1.2: {}
 
-  openai@5.9.0(ws@8.18.2(bufferutil@4.0.9))(zod@3.25.62):
+  openai@5.9.2(ws@8.18.2(bufferutil@4.0.9))(zod@3.25.62):
     optionalDependencies:
       ws: 8.18.2(bufferutil@4.0.9)
       zod: 3.25.62

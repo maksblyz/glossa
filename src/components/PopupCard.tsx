@@ -10,6 +10,7 @@ interface PopupCardProps {
   onClose: () => void;
   type?: string;
   fileName: string;
+  imageUrl?: string;
 }
 
 const PopupCard: React.FC<PopupCardProps> = ({
@@ -18,6 +19,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
   onClose,
   type,
   fileName,
+  imageUrl,
 }) => {
   const [localError, setLocalError] = useState('');
 
@@ -37,7 +39,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
 
   const serialized = React.useMemo(
     () => String(content),          // flatten ReactNode → string
-    [content, fileName, type]       // recompute only when any of these change
+    [content, fileName, type, imageUrl]       // recompute only when any of these change
   );
   
   // 2️⃣ effect that runs exactly once per unique payload
@@ -47,7 +49,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
     const run = async () => {
       try {
         await complete('', {          // empty prompt
-          body: { content: serialized, fileName, type }
+          body: { content: serialized, fileName, type, imageUrl }
         });
       } catch (e) {
         console.error(e);
@@ -57,7 +59,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
   
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serialized, fileName, type]);   // deps are now stable primitives
+  }, [serialized, fileName, type, imageUrl]);   // deps are now stable primitives
 
   return (
     <div
