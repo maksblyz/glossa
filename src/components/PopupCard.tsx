@@ -37,6 +37,8 @@ const PopupCard: React.FC<PopupCardProps> = ({
   imageUrl,
 }) => {
   const [localError, setLocalError] = useState('');
+  const [debouncedCompletion, setDebouncedCompletion] = useState('');
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /* ――― ai-sdk hooks ――― */
   const {
@@ -75,6 +77,23 @@ const PopupCard: React.FC<PopupCardProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, fileName, type, imageUrl]);
 
+  /* ――― debounce completion updates ――― */
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedCompletion(completion || '');
+    }, 35); // debounce
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [completion]);
+
   /* ――― flatten data for Virtuoso (explanation + chat) ――― */
   type ListItem =
     | { kind: 'exp'; content: string }
@@ -82,10 +101,10 @@ const PopupCard: React.FC<PopupCardProps> = ({
 
   const listData: ListItem[] = useMemo(() => {
     const arr: ListItem[] = [];
-    if (completion) arr.push({ kind: 'exp', content: completion });
+    if (debouncedCompletion) arr.push({ kind: 'exp', content: debouncedCompletion });
     messages.slice(1).forEach(m => arr.push({ kind: 'msg', role: m.role, content: m.content }));
     return arr;
-  }, [completion, messages]);
+  }, [debouncedCompletion, messages]);
 
   /* ――― item renderer ――― */
   const renderItem = (_: number, item: ListItem) => {
