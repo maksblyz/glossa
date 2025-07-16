@@ -312,6 +312,8 @@ export default function ComponentPDFViewer({
   const HORIZONTAL_MARGIN = 96; // 1 inch
   const VERTICAL_MARGIN = 72; // 0.75 inch
 
+  
+
   const handleComponentClick = (event: React.MouseEvent, content: string, type: string) => {
     const target = (event.target as HTMLElement).closest('.clickable-sentence') as HTMLElement;
     if (!target) return;
@@ -325,12 +327,33 @@ export default function ComponentPDFViewer({
     const rect = target.getBoundingClientRect();
     const popupWidth = 480;
     const margin = 20;
-    const spaceOnRight = window.innerWidth - rect.right;
-    const side: 'left' | 'right' = spaceOnRight >= popupWidth + margin ? 'right' : 'left';
-    const x = side === 'right' ? rect.right + margin : rect.left - popupWidth - margin;
-    const y = rect.top;
     
-    setPopupPosition({ x: Math.max(20, x), y: Math.max(20, y), side });
+    // Calculate available space on both sides
+    const spaceOnRight = window.innerWidth - rect.right;
+    const spaceOnLeft = rect.left;
+    
+    // Determine which side has more space
+    const side: 'left' | 'right' = spaceOnRight >= popupWidth + margin ? 'right' : 'left';
+    
+    // Calculate x position
+    let x: number;
+    if (side === 'right') {
+      x = rect.right + margin;
+    } else {
+      x = rect.left - popupWidth - margin;
+    }
+    
+    // Ensure popup stays within viewport bounds
+    x = Math.max(margin, Math.min(x, window.innerWidth - popupWidth - margin));
+    
+    // Calculate y position - center vertically relative to the clicked element
+    const popupHeight = 300; // Approximate height of popup
+    let y = rect.top + (rect.height / 2) - (popupHeight / 2);
+    
+    // Ensure popup stays within viewport vertically
+    y = Math.max(margin, Math.min(y, window.innerHeight - popupHeight - margin));
+    
+    setPopupPosition({ x, y, side });
     setPopupContent(content);
   };
 
