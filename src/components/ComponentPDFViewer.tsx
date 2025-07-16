@@ -356,8 +356,8 @@ export default function ComponentPDFViewer({
     
     setPopupPosition({ x, y, side });
     setPopupContent(content);
-    // If the clicked element is an image, set the imageUrl
-    if (type === 'Image' && target instanceof HTMLImageElement) {
+    // If the clicked element is an image or table, set the imageUrl
+    if ((type === 'Image' || type === 'Table') && target instanceof HTMLImageElement) {
       setPopupImageUrl(target.src);
     } else {
       setPopupImageUrl(undefined);
@@ -434,7 +434,7 @@ export default function ComponentPDFViewer({
               setSelectedElement(null);
             }
           }}
-          type={selectedElement?.classList.contains('equation') ? 'Equation' : selectedElement?.classList.contains('image-content') ? 'Image' : 'Text'}
+          type={selectedElement?.classList.contains('equation') ? 'Equation' : selectedElement?.classList.contains('image-content') ? 'Image' : selectedElement?.classList.contains('table-content') ? 'Table' : 'Text'}
           fileName={fileName}
           imageUrl={popupImageUrl}
         />
