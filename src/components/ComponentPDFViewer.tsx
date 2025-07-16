@@ -284,6 +284,7 @@ export default function ComponentPDFViewer({
   const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number; side: 'left' | 'right' } | null>(null);
   const [popupContent, setPopupContent] = useState<string>('');
+  const [popupImageUrl, setPopupImageUrl] = useState<string | undefined>(undefined);
 
   // 1. Group all database objects by page
   const pagesData = objects.reduce((acc, obj) => {
@@ -355,6 +356,12 @@ export default function ComponentPDFViewer({
     
     setPopupPosition({ x, y, side });
     setPopupContent(content);
+    // If the clicked element is an image, set the imageUrl
+    if (type === 'Image' && target instanceof HTMLImageElement) {
+      setPopupImageUrl(target.src);
+    } else {
+      setPopupImageUrl(undefined);
+    }
   };
 
   const handleOutsideClick = (event: React.MouseEvent) => {
@@ -421,13 +428,15 @@ export default function ComponentPDFViewer({
           onClose={() => {
             setPopupPosition(null);
             setPopupContent('');
+            setPopupImageUrl(undefined);
             if (selectedElement) {
               selectedElement.classList.remove('selected-sentence');
               setSelectedElement(null);
             }
           }}
-          type={selectedElement?.classList.contains('equation') ? 'Equation' : 'Text'}
+          type={selectedElement?.classList.contains('equation') ? 'Equation' : selectedElement?.classList.contains('image-content') ? 'Image' : 'Text'}
           fileName={fileName}
+          imageUrl={popupImageUrl}
         />
       )}
     </>
