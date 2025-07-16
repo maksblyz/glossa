@@ -1,5 +1,8 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import renderMath from './renderMath'; // We'll create this as a shared utility
+import { useCompletion } from '@ai-sdk/react';
+import renderMath from './renderMath';
 
 interface PopupCardProps {
   position: { x: number; y: number; side: 'left' | 'right' };
@@ -9,114 +12,95 @@ interface PopupCardProps {
   fileName: string;
 }
 
-const PopupCard: React.FC<PopupCardProps> = ({ position, content, onClose, type, fileName }) => {
-  const [explanation, setExplanation] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string>('');
+const PopupCard: React.FC<PopupCardProps> = ({
+  position,
+  content,
+  onClose,
+  type,
+  fileName,
+}) => {
+  const [localError, setLocalError] = useState('');
 
-  console.log('PopupCard rendering with:', { position, content, type });
-  console.log('PopupCard position details:', { x: position.x, y: position.y, side: position.side });
+  const {
+    completion,
+    complete,
+    isLoading,
+    error: completionError,
+  } = useCompletion({
+    api: '/api/explain',
+    streamProtocol: 'data',           // ⬅️ match the server
+    onError: err => {
+      console.error(err);
+      setLocalError('Failed to load explanation');
+    },
+  });
 
+  const serialized = React.useMemo(
+    () => String(content),          // flatten ReactNode → string
+    [content, fileName, type]       // recompute only when any of these change
+  );
+  
+  // 2️⃣ effect that runs exactly once per unique payload
   useEffect(() => {
-    const fetchExplanation = async () => {
-      if (!content || !fileName) {
-        console.log('Skipping fetch - missing content or fileName');
-        console.log('Content:', content);
-        console.log('FileName:', fileName);
-        return;
-      }
-      
-      setIsLoading(true);
-      setError('');
-      
-      const requestBody = { 
-        content: String(content),
-        fileName: fileName,
-        type: type,
-      };
-      
-      console.log('Sending request with body:', requestBody);
-      
+    if (!serialized || !fileName) return;
+  
+    const run = async () => {
       try {
-        const response = await fetch('/api/explain', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
+        await complete('', {          // empty prompt
+          body: { content: serialized, fileName, type }
         });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Response not ok:', response.status, errorText);
-          throw new Error('Failed to get explanation');
-        }
-
-        const data = await response.json();
-        setExplanation(data.explanation);
-      } catch (err) {
-        console.error('Error fetching explanation:', err);
-        setError('Failed to load explanation');
-      } finally {
-        setIsLoading(false);
+      } catch (e) {
+        console.error(e);
+        setLocalError('Failed to start explanation');
       }
     };
-
-    fetchExplanation();
-  }, [content, fileName, type]);
   
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serialized, fileName, type]);   // deps are now stable primitives
+
   return (
     <div
       className="popup-card fixed z-50 bg-white border border-gray-300 rounded-lg shadow-xl p-4 max-w-md"
       style={{
         left: position.x,
         top: position.y,
-        width: '480px',
-        transform: position.side === 'left' ? 'translateX(-100%)' : 'none',
+        width: 480,
       }}
     >
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-semibold text-gray-900">Explanation</h3>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-        >
+        <h3 className="text-lg font-semibold">Explanation</h3>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
           ×
         </button>
       </div>
-      
+
       {isLoading && (
-        <div className="text-sm text-gray-600 mb-3">
-          <div className="flex items-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-            Getting explanation...
-          </div>
+        <div className="text-sm text-gray-600 mb-3 flex items-center">
+          <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2" />
+          Getting explanation…s
         </div>
       )}
-      
-      {error && (
+
+      {(localError || completionError) && (
         <div className="text-sm text-red-600 mb-3">
-          <div className="font-semibold">Error:</div>
-          {error}
+          {localError || completionError?.message}
         </div>
       )}
-      
-      {explanation && !isLoading && !error && (
-        <div className="text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={renderMath(explanation)} />
+
+      {completion && !isLoading && !localError && !completionError && (
+        <div
+          className="text-sm text-gray-700 leading-relaxed"
+          dangerouslySetInnerHTML={renderMath(completion)}
+        />
       )}
-      
-      <div className="mt-4 pt-3 border-t border-gray-200">
-        <p className="text-xs text-gray-500">
-          Click outside to close
-          {type && (
-            <>
-              {' '}• Content type: {type}
-            </>
-          )}
-        </p>
+
+      <div className="mt-4 pt-3 border-t text-xs text-gray-500">
+        Click outside to close
+        {type && <> • Content type: {type}</>}
       </div>
     </div>
   );
 };
 
-export default PopupCard; 
+export default PopupCard;
