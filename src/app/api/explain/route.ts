@@ -31,15 +31,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle different content types
-    if (type === 'Image' && imageUrl) {
-      // For images, we'll use the image URL directly with the AI model
+    if ((type === 'Image' || type === 'Table') && imageUrl) {
+      // For images and tables, we'll use the image URL directly with the AI model
+      const promptText = type === 'Image' 
+        ? `The following is an image from a document. Please explain what you see in this image in 3-5 sentences for a high-school reader.\n\nContext:\n${context || 'None'}`
+        : `The following is a data table from a document. Please analyze this table and explain its key findings, structure, and significance in 3-5 sentences for a high-school reader.\n\nContext:\n${context || 'None'}`;
+      
+      const systemPrompt = type === 'Image'
+        ? 'You are an expert academic explainer. Analyze the image and provide a clear, educational explanation.'
+        : 'You are an expert academic explainer. Analyze the table data and provide a clear, educational explanation of its structure and key insights.';
+
       const result = streamText({
         model: openai('gpt-4o-mini'),
         messages: [
           {
             role: 'user',
             content: [
-              { type: 'text', text: `The following is an image from a document. Please explain what you see in this image in 3-5 sentences for a high-school reader.\n\nContext:\n${context || 'None'}` },
+              { type: 'text', text: promptText },
               {
                 type: 'image',
                 image: imageUrl,
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
             ],
           },
         ],
-        system: 'You are an expert academic explainer. Analyze the image and provide a clear, educational explanation.',
+        system: systemPrompt,
         temperature: 0.2,
         maxTokens: 1024,
         onError: ({ error }) => console.error('stream error:', error),
