@@ -326,7 +326,7 @@ export default function ComponentPDFViewer({
     setSelectedElement(target);
 
     const rect = target.getBoundingClientRect();
-    const popupWidth = 480;
+    const popupWidth = 600;
     const margin = 20;
     
     // Calculate available space on both sides
@@ -348,7 +348,7 @@ export default function ComponentPDFViewer({
     x = Math.max(margin, Math.min(x, window.innerWidth - popupWidth - margin));
     
     // Calculate y position - center vertically relative to the clicked element
-    const popupHeight = 300; // Approximate height of popup
+    const popupHeight = 600; // Updated height to match the card
     let y = rect.top + (rect.height / 2) - (popupHeight / 2);
     
     // Ensure popup stays within viewport vertically
