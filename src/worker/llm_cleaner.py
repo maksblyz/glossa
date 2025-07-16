@@ -288,7 +288,7 @@ async def process_chunks(chunk_groups, image_info, table_info, figure_map=None):
         results = await asyncio.gather(*tasks)
     return results
 
-def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables: list[dict] = None) -> list[dict]:
+async def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables: list[dict] = None) -> list[dict]:
     """Convert text chunks into structured component descriptions"""
     text_chunks = [c for c in chunks if c.get("content")]
     if not text_chunks:
@@ -335,8 +335,9 @@ def components_from_chunks(chunks: list[dict], images: list[dict] = None, tables
     chunk_groups_str = [[c.get("content", "") for c in group] for group in chunk_groups]
     # Build figure mapping
     figure_map = build_figure_mapping(text_chunks, images or [], tables) if images or tables else None
-    loop = asyncio.get_event_loop()
-    llm_results = loop.run_until_complete(process_chunks(chunk_groups_str, image_info, table_info, figure_map))
+    
+    # Use await instead of run_until_complete
+    llm_results = await process_chunks(chunk_groups_str, image_info, table_info, figure_map)
 
     # Merge and parse all results
     all_components = []
