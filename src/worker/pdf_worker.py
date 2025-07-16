@@ -1,4 +1,4 @@
-import os, time, json, tempfile, requests
+import os, time, json, tempfile, requests, asyncio
 from upstash_redis import Redis
 import psycopg2, psycopg2.extras
 import fitz
@@ -50,6 +50,47 @@ def download_blob(url: str) -> str:
         temp_file.write(response.content)
     return temp_path
 
+async def process_page_async(
+    page_num: int,
+    page_text: list,
+    page_images: list,
+    page_tables: list,
+    job_name: str,
+    page_dims: dict,
+    semaphore: asyncio.Semaphore
+):
+    """Process a single page asynchronously"""
+    async with semaphore:  # Limit concurrent LLM calls
+        if not page_text:
+            print(f"Skipping page {page_num} (no text content).")
+            return None
+
+        print(f"Processing page {page_num} through LLM...")
+        
+        # Get components for THIS PAGE ONLY
+        page_components = await components_from_chunks(page_text, page_images, page_tables)
+        
+        if page_components:
+            # Store components with the CORRECT page number
+            cursor.execute(
+                """
+                INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    job_name,
+                    page_num,
+                    "components",
+                    json.dumps({"components": page_components}),
+                    json.dumps([0, 0, 0, 0]), # Placeholder bbox
+                    page_dims.get(page_num, (612, 792))[0],
+                    page_dims.get(page_num, (612, 792))[1],
+                )
+            )
+            print(f"Stored {len(page_components)} components for page {page_num}.")
+            
+        return page_components
+
 def process_job(job:dict):
     pdf_path = None
     try:
@@ -100,41 +141,46 @@ def process_job(job:dict):
         page_dims = {i + 1: (p.rect.width, p.rect.height) for i, p in enumerate(doc)}
         doc.close()
 
-        all_components = []
-        
-        # 5. Process each page individually
-        for page_num in range(1, num_pages + 1):
-            page_text = text_by_page.get(page_num, [])
-            page_images = images_by_page.get(page_num, [])
-            page_tables = tables_by_page.get(page_num, [])
-
-            if not page_text:
-                print(f"Skipping page {page_num} (no text content).")
-                continue
-
-            print(f"Processing page {page_num} through LLM...")
-            # Get components for THIS PAGE ONLY
-            page_components = components_from_chunks(page_text, page_images, page_tables)
-            all_components.extend(page_components)
-
-            if page_components:
-                # Store components with the CORRECT page number
-                cursor.execute(
-                    """
-                    INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        job["name"],
-                        page_num,
-                        "components",
-                        json.dumps({"components": page_components}),
-                        json.dumps([0, 0, 0, 0]), # Placeholder bbox
-                        page_dims.get(page_num, (612, 792))[0],
-                        page_dims.get(page_num, (612, 792))[1],
-                    )
+        # 5. Process pages concurrently with asyncio
+        async def process_all_pages():
+            # Create a semaphore to limit concurrent LLM calls (adjust based on your API limits)
+            semaphore = asyncio.Semaphore(3)  # Process up to 3 pages concurrently
+            
+            # Create tasks for all pages
+            tasks = []
+            for page_num in range(1, num_pages + 1):
+                page_text = text_by_page.get(page_num, [])
+                page_images = images_by_page.get(page_num, [])
+                page_tables = tables_by_page.get(page_num, [])
+                
+                task = process_page_async(
+                    page_num, 
+                    page_text, 
+                    page_images, 
+                    page_tables, 
+                    job["name"], 
+                    page_dims, 
+                    semaphore
                 )
-                print(f"Stored {len(page_components)} components for page {page_num}.")
+                tasks.append(task)
+            
+            # Wait for all pages to complete
+            print(f"Processing {len(tasks)} pages concurrently...")
+            page_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Collect all components and handle any exceptions
+            all_components = []
+            for i, result in enumerate(page_results):
+                page_num = i + 1
+                if isinstance(result, Exception):
+                    print(f"Error processing page {page_num}: {result}")
+                elif result is not None:
+                    all_components.extend(result)
+            
+            return all_components
+        
+        # Run the async processing
+        all_components = asyncio.run(process_all_pages())
 
         # 6. Create embeddings from a simple text representation of all components
         if all_components:
