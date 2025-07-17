@@ -155,7 +155,7 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
                 src={img.props.src || ''}
                 alt={img.props.alt || 'PDF Figure'}
                 className="clickable-sentence image-content"
-                style={{ maxWidth: '45%', height: 'auto', display: 'block' }}
+                style={{ maxWidth: '32%', height: 'auto', display: 'block' }}
                 onClick={e => onComponentClick(e, img.props.alt || 'Image', 'Image')}
               />
             ))}
