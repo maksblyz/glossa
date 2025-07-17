@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useCompletion, useChat } from '@ai-sdk/react';
 import renderMath from './renderMath';
 
@@ -39,6 +39,8 @@ const PopupCard: React.FC<PopupCardProps> = ({
   const [localError, setLocalError] = useState('');
   const [debouncedCompletion, setDebouncedCompletion] = useState('');
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   /* ――― ai-sdk hooks ――― */
   const {
@@ -65,6 +67,13 @@ const PopupCard: React.FC<PopupCardProps> = ({
     body: { fileName, type, imageUrl, initialExplanation: completion },
     onError: err => (setLocalError('Failed to load chat response'), console.error(err)),
   });
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    // First, call the original submit handler to send the message
+    handleSubmit(e);
+    // Then, immediately blur the input to prevent the "jump back"
+    inputRef.current?.blur();
+  };
 
   /* ――― request explanation exactly once per payload ――― */
   useEffect(() => {
@@ -102,30 +111,45 @@ const PopupCard: React.FC<PopupCardProps> = ({
   const listData: ListItem[] = useMemo(() => {
     const arr: ListItem[] = [];
     if (debouncedCompletion) arr.push({ kind: 'exp', content: debouncedCompletion });
-    messages.slice(1).forEach(m => arr.push({ kind: 'msg', role: m.role, content: m.content }));
+    messages.forEach(m => arr.push({ kind: 'msg', role: m.role, content: m.content }));
     return arr;
   }, [debouncedCompletion, messages]);
+
+  /* ――― render text with math and markdown ――― */
+  const renderText = (text: string) => {
+    // First render math, then process markdown
+    const mathRendered = renderMath(text);
+    let html = mathRendered.__html;
+    
+    // Process markdown bold: **text** -> <strong>text</strong>
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    return { __html: html };
+  };
 
   /* ――― item renderer ――― */
   const renderItem = (_: number, item: ListItem) => {
     if (item.kind === 'exp') {
       return (
         <div
-          className="text-sm text-gray-700 leading-relaxed"
-          dangerouslySetInnerHTML={renderMath(item.content)}
+          className="text-sm text-gray-700 leading-relaxed virtuoso-content"
+          dangerouslySetInnerHTML={renderText(item.content)}
         />
       );
     }
     return (
       <div
-        className={`text-sm space-y-1 ${
+        className={`text-sm ${
           item.role === 'user' ? 'text-blue-600 font-medium' : 'text-gray-700'
         }`}
       >
-        <div className="text-xs text-gray-500 font-medium">
+        <div className="text-xs text-gray-500 font-medium mb-1">
           {item.role === 'user' ? 'You' : 'AI'}
         </div>
-        <div dangerouslySetInnerHTML={renderMath(item.content)} />
+        <div
+          className="virtuoso-content"
+          dangerouslySetInnerHTML={renderText(item.content)}
+        />
       </div>
     );
   };
@@ -141,15 +165,14 @@ const PopupCard: React.FC<PopupCardProps> = ({
           left: position.x,
           [position.positionFromBottom ? 'bottom' : 'top']: position.y,
           width: '450px',
-          height: '500px',
+          height: '450px',
           minWidth: '450px',
           maxWidth: '450px',
-          minHeight: '500px',
-          maxHeight: '500px',
+          minHeight: '450px',
+          maxHeight: '450px',
           display: 'flex',
           flexDirection: 'column',
           boxSizing: 'border-box',
-          overflow: 'hidden',
         }}
       >
         {/* header */}
@@ -166,7 +189,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
         </div>
 
         {/* body */}
-        <div className="flex-1 p-4" style={{ flex: '1 1 auto', minHeight: '0', overflow: 'hidden' }}>
+        <div className="flex-1 p-4" style={{ flex: '1 1 auto', minHeight: '0' }}>
           {isLoading && (
             <div className="flex items-center text-sm text-gray-600 mb-4">
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-2" />
@@ -181,14 +204,21 @@ const PopupCard: React.FC<PopupCardProps> = ({
           )}
 
           {/* content area */}
-          <div className="flex-1 overflow-y-auto" style={{ flex: '1 1 auto', minHeight: '0', height: '100%' }}>
+          <div className="flex-1" style={{ minHeight: 0, height: '100%' }}>
             <Virtuoso
+              ref={virtuosoRef}
               data={listData}
-              followOutput="auto"
+              followOutput="smooth"
               style={{ height: '100%' }}
               itemContent={renderItem}
+              components={{
+                Item: ({ children, ...props }) => (
+                  <div {...props} className="pb-3 last:pb-0">{children}</div>
+                ),
+              }}
             />
           </div>
+
 
           {(localError || chatError) && (
             <div className="text-sm text-red-600 mt-4">
@@ -198,10 +228,12 @@ const PopupCard: React.FC<PopupCardProps> = ({
         </div>
 
         {/* footer */}
+        {/* footer */}
         <div className="p-4 border-t">
           {completion && !isLoading && !localError && !completionError && (
-            <form onSubmit={handleSubmit} className="flex w-full gap-2">
+            <form onSubmit={handleFormSubmit} className="flex w-full gap-2"> {/* 👈 Use new handler */}
               <Input
+                ref={inputRef}
                 value={input}
                 onChange={handleInputChange}
                 placeholder="Ask a follow‑up question…"

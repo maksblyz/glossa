@@ -421,3 +421,13 @@ blockquote.clickable-sentence.selected-sentence {
   text-align: center !important;
   max-width: 600px !important;
 }
+
+/* Virtuoso content - remove margins that break height calculations */
+.virtuoso-content p,
+.virtuoso-content h1,
+.virtuoso-content h2,
+.virtuoso-content h3,
+.virtuoso-content ul,
+.virtuoso-content ol {
+  margin: 0 !important;
+}

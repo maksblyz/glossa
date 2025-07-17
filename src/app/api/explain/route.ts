@@ -42,10 +42,10 @@ export async function POST(req: NextRequest) {
 
       // Build the conversation with proper context
       const systemPrompt = type === 'Image'
-        ? 'You are an expert academic explainer. You are having a conversation about an image from a document. Provide clear, educational answers to follow-up questions. You can reference specific parts of the original explanation and the image content.'
+        ? 'You are an expert academic explainer. Provide concise, direct answers to follow-up questions about this image.'
         : type === 'Table'
-        ? 'You are an expert academic explainer. You are having a conversation about a data table from a document. Provide clear, educational answers to follow-up questions about the table structure and data. You can reference specific parts of the original explanation and the table content.'
-        : 'You are an expert academic explainer. You are having a conversation about content from a document. Provide clear, educational answers to follow-up questions. You can reference specific parts of the original explanation and the text content.';
+        ? 'You are an expert academic explainer. Provide concise, direct answers to follow-up questions about this data table.'
+        : 'You are an expert academic explainer. Provide concise, direct answers to follow-up questions about this content.';
 
       // If we have an image, we need to include it in the first message
       if (imageUrl && (type === 'Image' || type === 'Table')) {
