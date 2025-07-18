@@ -10,10 +10,12 @@ import { Cloud, File } from "lucide-react"
 import { Progress } from "./ui/progress"
 
 import { upload } from "@vercel/blob/client"
+import { trpc } from "@/app/_trpc/client"
 
 const UploadDropzone = () => {
 
     const router = useRouter();
+    const utils = trpc.useUtils();
     const [isUploading, setIsUploading] = useState<boolean>(false)
     const [uploadProgress, setUploadProgress] = useState<number>(0)
 
@@ -47,8 +49,10 @@ const UploadDropzone = () => {
             });
             clearInterval(progressInterval)
             setUploadProgress(100)
-            // call api/process?url=blob.url
-
+            
+            // Invalidate the files query to refresh the dashboard
+            utils.getUserFiles.invalidate()
+            
             // redirect to the viewer page
             const filename = encodeURIComponent(blob.pathname ?? blob.url.split('/').pop()!);
             router.push(`/pdf/${filename}`);
@@ -110,7 +114,17 @@ const UploadButton = () => {
             }
         }}>
             <DialogTrigger onClick= {()=> setIsOpen(true)} asChild>
-                <Button>Upload PDF</Button>
+                <Button 
+                    style={{ 
+                        fontFamily: '"source-serif-pro", serif',
+                        fontSize: '19px',
+                        paddingLeft: '32px',
+                        paddingRight: '32px',
+                        height: '48px'
+                    }}
+                >
+                    Upload PDF
+                </Button>
             </DialogTrigger>
 
             <DialogContent>

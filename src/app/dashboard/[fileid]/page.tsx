@@ -1,8 +1,6 @@
 import { db } from "@/db"
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server"
 import { notFound, redirect } from "next/navigation"
-// import DashboardHeader from '@/components/DashboardHeader'
-import { PDFStub } from "@/components/PDFStub"
 import { KindeUser } from "@kinde-oss/kinde-auth-nextjs"
 
 export default async function Page({ params }: { params: { fileid: string } }) {
@@ -13,15 +11,13 @@ export default async function Page({ params }: { params: { fileid: string } }) {
 
     if(!user?.id) redirect(`/auth-callback?origin=dashboard/${fileid}`)
 
-    // const file = await db.file.findFirst({
-    //     where: { id: fileid, userId: user!.id }
-    // })
-    // if(!file) notFound()
+    // Get the file from database
+    const file = await db.file.findFirst({
+        where: { id: fileid, userId: user!.id }
+    })
     
-    return (
-        <>
-        {/* DashboardHeader removed, now provided by layout */}
-        <PDFStub/>
-        </>
-    )
+    if(!file) notFound()
+    
+    // Redirect to the PDF viewer with the file key
+    redirect(`/pdf/${encodeURIComponent(file.key)}`)
 }
