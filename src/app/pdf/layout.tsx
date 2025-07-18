@@ -1,4 +1,4 @@
-import Header from "@/components/Header"
+import PDFHeader from "@/components/PDFHeader"
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server"
 
 export default async function PDFLayout({
@@ -11,7 +11,7 @@ export default async function PDFLayout({
 
   return (
     <>
-      <Header user={user} />
+      <PDFHeader user={user} />
       {children}
     </>
   )

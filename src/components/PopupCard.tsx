@@ -138,18 +138,31 @@ const PopupCard: React.FC<PopupCardProps> = ({
       );
     }
     return (
-      <div
-        className={`text-sm ${
-          item.role === 'user' ? 'text-blue-600 font-medium' : 'text-gray-700'
-        }`}
+      <div 
+        className="w-full flex"
+        style={{ 
+          justifyContent: item.role === 'user' ? 'flex-end' : 'flex-start'
+        }}
       >
-        <div className="text-xs text-gray-500 font-medium mb-1">
-          {item.role === 'user' ? 'You' : 'AI'}
+        <div className={`text-sm max-w-[80%] ${
+          item.role === 'user' ? 'text-blue-600 font-medium' : 'text-gray-700'
+        }`}>
+          <div 
+            className="text-xs text-gray-500 font-medium mb-1"
+            style={{ 
+              textAlign: item.role === 'user' ? 'right' : 'left'
+            }}
+          >
+            {item.role === 'user' ? 'You' : 'AI'}
+          </div>
+          <div
+            className={item.role === 'user' ? 'virtuoso-content' : ''}
+            style={{ 
+              textAlign: item.role === 'user' ? 'right' : 'left'
+            }}
+            dangerouslySetInnerHTML={renderText(item.content)}
+          />
         </div>
-        <div
-          className="virtuoso-content"
-          dangerouslySetInnerHTML={renderText(item.content)}
-        />
       </div>
     );
   };
@@ -159,46 +172,47 @@ const PopupCard: React.FC<PopupCardProps> = ({
   console.log('PopupCard render - position:', position, 'completion length:', completion?.length);
 
   return (
-          <div
-        className="fixed z-50 bg-white rounded-lg shadow-xl flex flex-col max-w-none sm:max-w-none"
-        style={{
-          left: position.x,
-          [position.positionFromBottom ? 'bottom' : 'top']: position.y,
-          width: '450px',
-          height: '450px',
-          minWidth: '450px',
-          maxWidth: '450px',
-          minHeight: '450px',
-          maxHeight: '450px',
-          display: 'flex',
-          flexDirection: 'column',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* header */}
-        <div className="flex items-center justify-between p-4 bg-gray-100 border-b">
-          <h3 className="text-lg font-semibold">Explanation</h3>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-gray-400 hover:text-gray-600"
-            onClick={onClose}
-          >
-            ×
-          </Button>
-        </div>
+    <div
+      className="fixed z-50 bg-white rounded-lg shadow-xl flex flex-col max-w-none sm:max-w-none"
+      style={{
+        left: position.x,
+        [position.positionFromBottom ? 'bottom' : 'top']: position.y,
+        width: '450px',
+        height: '450px',
+        minWidth: '450px',
+        maxWidth: '450px',
+        minHeight: '450px',
+        maxHeight: '450px',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box',
+      }}
+    >
+      <Card className="h-full flex flex-col shadow-xl">
+        <CardHeader className="pb-2 pt-3">
+          <div className="flex items-center justify-between h-6">
+            <CardTitle className="text-base leading-none">Explanation</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 p-0"
+              onClick={onClose}
+            >
+              ×
+            </Button>
+          </div>
+        </CardHeader>
 
-        {/* body */}
-        <div className="flex-1 p-4" style={{ flex: '1 1 auto', minHeight: '0' }}>
+        <CardContent className="flex-1 p-4 pb-0">
           {isLoading && (
-            <div className="flex items-center text-sm text-gray-600 mb-4">
-              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-2" />
+            <div className="flex items-center text-sm text-muted-foreground mb-4">
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
               Getting explanation…
             </div>
           )}
 
           {(localError || completionError) && (
-            <div className="text-sm text-red-600 mb-4">
+            <div className="text-sm text-destructive mb-4">
               {localError || completionError?.message}
             </div>
           )}
@@ -213,52 +227,50 @@ const PopupCard: React.FC<PopupCardProps> = ({
               itemContent={renderItem}
               components={{
                 Item: ({ children, ...props }) => (
-                  <div {...props} className="pb-3 last:pb-0">{children}</div>
+                  <div {...props} className="pb-5 last:pb-0">{children}</div>
                 ),
               }}
             />
           </div>
 
-
           {(localError || chatError) && (
-            <div className="text-sm text-red-600 mt-4">
+            <div className="text-sm text-destructive mt-4">
               {localError || chatError?.message}
             </div>
           )}
-        </div>
+        </CardContent>
 
-        {/* footer */}
-        {/* footer */}
-        <div className="p-4 border-t">
+        <CardFooter className="pt-3">
           {completion && !isLoading && !localError && !completionError && (
-            <form onSubmit={handleFormSubmit} className="flex w-full gap-2"> {/* 👈 Use new handler */}
-              <Input
-                ref={inputRef}
-                value={input}
-                onChange={handleInputChange}
-                placeholder="Ask a follow‑up question…"
-                className="text-sm"
-                disabled={isChatLoading}
-              />
-              <Button
-                type="submit"
-                disabled={isChatLoading || !input.trim()}
-                className="bg-black hover:bg-gray-800 text-white"
-              >
-                {isChatLoading ? (
-                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                ) : (
-                  'Send'
-                )}
-              </Button>
-            </form>
+            <>
+              <form onSubmit={handleFormSubmit} className="flex w-full gap-2">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Ask a follow‑up question…"
+                  className="text-sm"
+                  disabled={isChatLoading}
+                />
+                <Button
+                  type="submit"
+                  disabled={isChatLoading || !input.trim()}
+                  size="sm"
+                  className="h-10"
+                >
+                  {isChatLoading ? (
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                  ) : (
+                    'Send'
+                  )}
+                </Button>
+              </form>
+            </>
           )}
-          <p className="mt-2 text-xs text-muted-foreground">
-            Click outside to close{type && <> • {type}</>}
-          </p>
-        </div>
-      </div>
-    );
+        </CardFooter>
+      </Card>
+    </div>
+  );
 };
 
 export default PopupCard;

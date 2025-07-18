@@ -22,9 +22,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className='light'>
+      <head>
+        <link rel="stylesheet" href="https://use.typekit.net/rwc2ror.css" />
+      </head>
       <Providers>
         <body
-          className={cn('min-h-screen font-sans antialiased grainy'
+          className={cn('min-h-screen font-sans antialiased bg-white'
           )}>
           {/* NavBar removed from global layout */}
           {children}

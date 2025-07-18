@@ -95,6 +95,14 @@ def process_job(job:dict):
     pdf_path = None
     try:
         print("Processing:", job["name"])
+        
+        # Update file status to PROCESSING
+        cursor.execute(
+            "UPDATE \"File\" SET \"uploadStatus\" = 'PROCESSING' WHERE \"key\" = %s",
+            (job["name"],)
+        )
+        conn.commit()
+        
         pdf_path = download_blob(job["url"])
 
         # 1. Extract all objects from the PDF
@@ -225,12 +233,22 @@ def process_job(job:dict):
             )
             print(f"Stored {len(vision_objects)} vision objects.")
 
+        # Update file status to SUCCESS
+        cursor.execute(
+            "UPDATE \"File\" SET \"uploadStatus\" = 'SUCCESS' WHERE \"key\" = %s",
+            (job["name"],)
+        )
         conn.commit()
         print("Successfully processed", job["name"])
 
     except Exception as e:
         print(f"Error processing {job['name']}: {str(e)}")
-        conn.rollback()
+        # Update file status to FAILED
+        cursor.execute(
+            "UPDATE \"File\" SET \"uploadStatus\" = 'FAILED' WHERE \"key\" = %s",
+            (job["name"],)
+        )
+        conn.commit()
         raise
     finally:
         if pdf_path and os.path.exists(pdf_path):
