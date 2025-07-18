@@ -10,9 +10,9 @@ export default async function DashboardLayout({
   const user = await getUser()
 
   return (
-    <>
+    <div className="min-h-screen bg-white">
       <DashboardHeader user={user} />
       {children}
-    </>
+    </div>
   )
 } 
