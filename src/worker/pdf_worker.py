@@ -3,6 +3,10 @@ from upstash_redis import Redis
 import psycopg2, psycopg2.extras
 import fitz
 from collections import defaultdict
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from text_extractor import TextExtractor
 from image_extractor import ImageExtractor

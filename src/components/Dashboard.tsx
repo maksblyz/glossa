@@ -67,10 +67,10 @@ const Dashboard = () => {
                 onDelete={(id) => deleteFile({id})}
               />
             ))}
-        </div>
+                </div>
       ) : isLoading ? (
         <div className="flex justify-center">
-          <Skeleton height={100} className="my-2" count={3} />
+        <Skeleton height={100} className="my-2" count={3} />
         </div>
       ) : (
         <div className="mt-16 flex flex-col items-center gap-2">

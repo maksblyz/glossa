@@ -8,25 +8,25 @@ const redis = Redis.fromEnv();
 
 export async function POST(req: Request) {
     try {
-        const body = (await req.json()) as HandleUploadBody;
+    const body = (await req.json()) as HandleUploadBody;
         console.log('Upload request body:', body);
 
-        return handleUpload({
-            request: req,
-            body,
+    return handleUpload({
+        request: req,
+        body,
 
-            //issue token
+        //issue token
             onBeforeGenerateToken: async () => {
                 console.log('Generating token...');
                 return {
-                    allowedContentTypes: ['application/pdf'],
+            allowedContentTypes: ['application/pdf'],
                     addRandomSuffix: true,
-                    tokenPayload: JSON.stringify({})
+            tokenPayload: JSON.stringify({})
                 };
             },
 
-            //called once browser PUTS file
-            onUploadCompleted: async ({ blob }) => {
+        //called once browser PUTS file
+        onUploadCompleted: async ({ blob }) => {
                 try {
                     console.log('Upload completed for blob:', blob.pathname);
                     console.log('Blob URL:', blob.url);
@@ -66,10 +66,10 @@ export async function POST(req: Request) {
                 } catch (error) {
                     console.error('Error in onUploadCompleted:', error);
                     // Still add to Redis queue even if database save fails
-                    await redis.lpush('pdf_jobs', JSON.stringify({url: blob.url, name: blob.pathname}))
+            await redis.lpush('pdf_jobs', JSON.stringify({url: blob.url, name: blob.pathname}))
                 }
             }
-        }).then(json => NextResponse.json(json));
+    }).then(json => NextResponse.json(json));
     } catch (error) {
         console.error('Error in upload API:', error);
         return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

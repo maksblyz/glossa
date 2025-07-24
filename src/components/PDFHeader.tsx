@@ -6,13 +6,13 @@ import type { KindeUser } from '@kinde-oss/kinde-auth-nextjs'
 export default function PDFHeader({ user }: { user?: KindeUser<Record<string, any>> | null }) {
   return (
     <nav 
-      className='sticky inset-x-0 top-0 z-30 w-full transition-all bg-white border-b border-gray-200'
-      style={{ height: '80px' }}
+      className='sticky inset-x-0 top-0 z-30 w-full transition-all bg-white/90 border-b border-gray-200'
+      style={{ height: '88px' }}
     >
       <div className="mx-auto w-full max-w-screen-xl px-2.5 md:px-20">
         <div 
           className="flex items-center justify-between"
-          style={{ height: '80px' }}
+          style={{ height: '88px' }}
         >
           <Link 
             href='/dashboard' 
