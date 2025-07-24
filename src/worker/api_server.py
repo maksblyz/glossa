@@ -3,6 +3,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from embedding_service import EmbeddingService
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests

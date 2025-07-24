@@ -23,8 +23,8 @@ export default function DashboardHeader({ user }: { user?: KindeUser<Record<stri
 
           <div className="flex items-center gap-6">
             <UploadButton />
-            
-            {/* profile icon */}
+
+          {/* profile icon */}
             <div 
               className="flex items-center justify-center text-white"
               style={{
@@ -37,7 +37,7 @@ export default function DashboardHeader({ user }: { user?: KindeUser<Record<stri
                 backgroundColor: '#2563eb'
               }}
             >
-              {user?.given_name?.[0]?.toUpperCase() ?? 'U'}
+            {user?.given_name?.[0]?.toUpperCase() ?? 'U'}
             </div>
           </div>
         </div>
