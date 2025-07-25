@@ -14,24 +14,24 @@ export default function DashboardHeader({ user }: { user?: KindeUser<Record<stri
             href='/dashboard' 
             className="flex z-40 items-center">
             <span 
-              className="text-5xl font-normal" 
+              className="text-4xl font-normal" 
               style={{ fontFamily: '"source-serif-pro", serif' }}
             >
               Glossa.
             </span>
           </Link>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <UploadButton />
 
           {/* profile icon */}
             <div 
               className="flex items-center justify-center text-white"
               style={{
-                width: '48px',
-                height: '48px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '8px',
-                fontSize: '24px',
+                fontSize: '20px',
                 fontFamily: '"source-serif-pro", serif',
                 fontWeight: 'normal',
                 backgroundColor: '#2563eb'

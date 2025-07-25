@@ -123,10 +123,10 @@ const UploadButton = () => {
                 <Button 
                     style={{ 
                         fontFamily: '"source-serif-pro", serif',
-                        fontSize: '19px',
-                        paddingLeft: '32px',
-                        paddingRight: '32px',
-                        height: '48px'
+                        fontSize: '16px',
+                        paddingLeft: '24px',
+                        paddingRight: '24px',
+                        height: '40px'
                     }}
                 >
                     Upload PDF
