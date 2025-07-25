@@ -5,10 +5,11 @@ export const runtime = 'nodejs';
 
 export async function GET(
     _req: NextRequest,
-    { params }: { params : { file: string } }
+    { params }: { params : Promise<{ file: string }> }
 ) {
+    const { file } = await params;
     const objects = await prisma.pdfObject.findMany({
-        where: { file: params.file },
+        where: { file },
         orderBy: [{ page: 'asc' }, { id: 'asc' }],
         select: { 
             id: true,

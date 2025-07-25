@@ -32,19 +32,47 @@ export const appRouter = router({
 
         return { success: true, email: user.email };
     }),
+    getCurrentUser: publicProcedure.query(async () => {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        
+        if (!user?.id) {
+            throw new TRPCError({ code: 'UNAUTHORIZED' });
+        }
+        
+        return { userId: user.id, email: user.email };
+    }),
     getUserFiles: privateProcedure.query(async ({ctx}) => {
         const {userId} = ctx
 
-        return await db.file.findMany({
+        console.log('getUserFiles called with userId:', userId);
+
+        if (!userId) {
+            console.log('No userId found, throwing UNAUTHORIZED');
+            throw new TRPCError({ code: 'UNAUTHORIZED' });
+        }
+
+        const files = await db.file.findMany({
             where: {
-                userId
+                userId: userId
+            },
+            orderBy: {
+                createdAt: 'desc'
             }
-        })
+        });
+        
+        console.log(`Found ${files.length} files for user ${userId}:`, files.map(f => ({ id: f.id, name: f.name, userId: f.userId })));
+        
+        return files;
     }),
     deleteFile: privateProcedure.input(
         z.object({id: z.string()})
     ).mutation(async ({ctx, input}) => {
         const { userId } = ctx
+
+        if (!userId) {
+            throw new TRPCError({ code: 'UNAUTHORIZED' });
+        }
 
         const file = await db.file.findFirst({
             where: {
