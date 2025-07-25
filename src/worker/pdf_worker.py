@@ -74,6 +74,10 @@ async def process_page_async(
         # Get components for THIS PAGE ONLY
         page_components = await components_from_chunks(page_text, page_images, page_tables)
         
+        # Filter out titles from pages other than page 1
+        if page_num > 1:
+            page_components = [comp for comp in page_components if comp.get('component') != 'Title']
+        
         if page_components:
             # Store components with the CORRECT page number
             cursor.execute(
@@ -201,7 +205,7 @@ def process_job(job:dict):
             print("Creating embeddings...")
             embedding_info = embedding_service.create_embeddings(
                 file_name=job["name"],
-                html_content=html_content_for_embedding
+                content=html_content_for_embedding
             )
             print(f"Embeddings created: {embedding_info.get('chunk_count')} chunks.")
 

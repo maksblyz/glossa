@@ -27,7 +27,7 @@ export default function RootLayout({
       </head>
       <Providers>
         <body
-          className={cn('min-h-screen font-sans antialiased bg-white'
+          className={cn('min-h-screen font-sans antialiased bg-neutral-100'
           )}>
           {/* NavBar removed from global layout */}
           {children}

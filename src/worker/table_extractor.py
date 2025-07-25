@@ -59,7 +59,116 @@ class TableExtractor(BaseExtractor):
                 layout_blocks = self._layout.detect(img)
                 
                 # PubLayNet: block.type == 3 or 4 can both be tables (different table styles)
-                table_blocks = [block for block in layout_blocks if block.type in [3, 4]]
+                # But first, let's filter out author blocks early
+                potential_table_blocks = [block for block in layout_blocks if block.type in [3, 4]]
+                
+                # Early author block detection - filter out before processing as tables
+                table_blocks = []
+                for block in potential_table_blocks:
+                    x0, y0, x1, y1 = map(int, block.coordinates)
+                    
+                    # Debug: Print bbox coordinates
+                    print(f"Page {page_number} - Potential table bbox: ({x0}, {y0}, {x1}, {y1})")
+                    
+                    # Check if coordinates are valid
+                    if x0 >= x1 or y0 >= y1:
+                        print(f"Page {page_number} - Invalid bbox coordinates, skipping")
+                        continue
+                    
+                    # Extract text content for this block
+                    text_rect = fitz.Rect(x0, y0, x1, y1)
+                    text_content = page.get_text("text", clip=text_rect).strip()
+                    
+                    # Debug: Print extracted content
+                    print(f"Page {page_number} - Extracted content: '{text_content[:100]}...'")
+                    
+                    # Also try getting all text from the page to see what's available
+                    if page_number == 1:  # Only for first page to avoid spam
+                        all_text = page.get_text("text").strip()
+                        print(f"Page {page_number} - ALL text on page: '{all_text[:500]}...'")
+                    
+                    # If no content found, try with a slightly expanded bbox (in case of coordinate system mismatch)
+                    if len(text_content) == 0:
+                        print(f"Page {page_number} - No content found, trying expanded bbox")
+                        expanded_rect = fitz.Rect(max(0, x0-10), max(0, y0-10), min(pix.w, x1+10), min(pix.h, y1+10))
+                        text_content = page.get_text("text", clip=expanded_rect).strip()
+                        print(f"Page {page_number} - Expanded bbox content: '{text_content[:100]}...'")
+                    
+                    # Skip if still no text content
+                    if len(text_content) == 0:
+                        print(f"Page {page_number} - Skipping empty block")
+                        continue
+                    
+                    # Early author block detection
+                    text_lower = text_content.lower()
+                    
+                    # Check for email patterns
+                    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+                    import re
+                    has_emails = bool(re.search(email_pattern, text_content))
+                    
+                    # Check for author name patterns (first name + last name)
+                    author_name_pattern = r'\b[A-Z][a-z]+ [A-Z][a-z]+\b'
+                    has_author_names = bool(re.search(author_name_pattern, text_content))
+                    
+                    # Check for author block indicators
+                    author_indicators = [
+                        '@', 'email', 'university', 'google', 'research', 'brain',
+                        'department', 'institute', 'school', 'college', 'correspondence'
+                    ]
+                    
+                    # Check if this looks like an author block
+                    is_author_block = has_emails or any(indicator in text_lower for indicator in author_indicators)
+                    
+                    # Additional check: if it has both author names and emails, it's definitely an author block
+                    if has_author_names and has_emails:
+                        is_author_block = True
+                    
+                    # Debug: Print detection results
+                    print(f"Page {page_number} - Author detection: emails={has_emails}, names={has_author_names}, is_author_block={is_author_block}")
+                    
+                    # Additional check: if it's in the top 30% of the page and has any author indicators, reject it
+                    page_height = pix.h
+                    top_threshold = page_height * 0.3
+                    in_top_30_percent = y0 < top_threshold
+                    has_author_indicators = has_emails or has_author_names or any(indicator in text_lower for indicator in author_indicators)
+                    print(f"Page {page_number} - Position check: y0={y0}, top_threshold={top_threshold}, in_top_30%={in_top_30_percent}, has_author_indicators={has_author_indicators}")
+                    if in_top_30_percent and has_author_indicators:
+                        print(f"Rejected author block on page {page_number}: early detection (position-based)")
+                        continue
+                    
+                    # Additional check: if more than 10% of lines look like author info, it's likely an author block
+                    lines = text_content.split('\n')
+                    name_affiliation_lines = 0
+                    total_lines = len(lines)
+                    
+                    for line in lines:
+                        line = line.strip()
+                        if line:
+                            # Check if line looks like a name + affiliation pattern
+                            if '@' in line or any(indicator in line.lower() for indicator in author_indicators):
+                                name_affiliation_lines += 1
+                    
+                    if total_lines > 0 and (name_affiliation_lines / total_lines) > 0.1:
+                        is_author_block = True
+                    
+                    # If it's an author block, skip it
+                    if is_author_block:
+                        print(f"Rejected author block on page {page_number}: contains author/email info")
+                        print(f"  Text preview: '{text_content[:200]}...'")
+                        continue
+                    
+                    # Additional check: if this is page 1 and we're in the top half, be extra careful
+                    if page_number == 1 and y0 < page_height * 0.5:
+                        # Get all text from the page and check if it contains author patterns
+                        all_page_text = page.get_text("text").strip()
+                        if re.search(email_pattern, all_page_text) or re.search(author_name_pattern, all_page_text):
+                            print(f"Rejected potential author block on page {page_number}: page contains author patterns")
+                            continue
+                    
+                    # If we get here, it's a potential table block
+                    print(f"Page {page_number} - Accepted as potential table block")
+                    table_blocks.append(block)
                 
                 # Filter out overlapping table blocks (keep the one with more text content)
                 filtered_table_blocks = []
@@ -102,7 +211,7 @@ class TableExtractor(BaseExtractor):
                 
                 table_blocks = filtered_table_blocks
                 
-                # Verify that detected "tables" actually contain text/data (not just images)
+                # Verify that detected "tables" actually contain text/data and have proper table structure
                 verified_table_blocks = []
                 for block in table_blocks:
                     x0, y0, x1, y1 = map(int, block.coordinates)
@@ -111,14 +220,33 @@ class TableExtractor(BaseExtractor):
                     text_rect = fitz.Rect(x0, y0, x1, y1)
                     text_content = page.get_text("text", clip=text_rect).strip()
                     
-                    # Check if this region contains any text (likely a table or a figure with text)
-                    if len(text_content) > 0:  # Any text at all
-                        verified_table_blocks.append(block)
-                        print(f"Verified table on page {page_number}: {len(text_content)} chars of text")
-                    else:
-                        print(f"Rejected table candidate on page {page_number}: only {len(text_content)} chars (likely an image)")
-                        if len(text_content) > 0:
-                            print(f"  Text preview: '{text_content[:100]}...'")
+                    # Skip if no text content
+                    if len(text_content) == 0:
+                        print(f"Rejected table candidate on page {page_number}: no text content")
+                        continue
+                    
+                    # Check for table-like characteristics
+                    # Tables typically have multiple rows with similar structure
+                    lines = text_content.split('\n')
+                    has_table_structure = False
+                    if len(lines) >= 3:  # At least 3 lines for a basic table
+                        # Check if lines have similar length (indicating columns)
+                        line_lengths = [len(line.strip()) for line in lines if line.strip()]
+                        if len(line_lengths) >= 3:
+                            avg_length = sum(line_lengths) / len(line_lengths)
+                            # If most lines have similar length, it might be a table
+                            similar_lengths = sum(1 for length in line_lengths if 0.5 * avg_length <= length <= 1.5 * avg_length)
+                            if similar_lengths / len(line_lengths) > 0.6:
+                                has_table_structure = True
+                    
+                    if not has_table_structure and len(lines) < 3:
+                        print(f"Rejected non-table content on page {page_number}: insufficient structure")
+                        print(f"  Text preview: '{text_content[:200]}...'")
+                        continue
+                    
+                    verified_table_blocks.append(block)
+                    print(f"Verified table on page {page_number}: {len(text_content)} chars of text")
+                    print(f"  Text preview: '{text_content[:200]}...'")
                 
                 table_blocks = verified_table_blocks
                 

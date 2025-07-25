@@ -146,7 +146,10 @@
 /* Headings: Use standard CSS properties instead of @apply */
 .academic-paper h1,
 .academic-paper h2,
-.academic-paper h3 {
+.academic-paper h3,
+.academic-paper h4,
+.academic-paper h5,
+.academic-paper h6 {
   font-weight: 700; /* @apply font-bold */
   color: black;
   line-height: 1.2;
@@ -155,16 +158,52 @@
   page-break-inside: avoid;
 }
 
-.academic-paper h2 {
-  font-size: 1.125rem; /* Corresponds to text-lg */
-  margin-top: 1.5rem; /* Corresponds to mt-6 */
-  margin-bottom: 0.75rem; /* Corresponds to mb-3 */
+/* Level 1: Major sections (Abstract, Introduction, Conclusion, References) */
+.academic-paper h1 {
+  font-size: 1.5rem; /* Large and prominent */
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 800; /* Extra bold for importance */
 }
 
+/* Level 2: Top-level numbered sections (1, 2, 3) */
+.academic-paper h2 {
+  font-size: 1.25rem; /* Large but not as prominent as h1 */
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+/* Level 3: Sub-sections (1.1, 1.2, 2.1, 2.2) */
 .academic-paper h3 {
-  font-size: 1rem; /* Corresponds to text-base */
-  margin-top: 1rem; /* Corresponds to mt-4 */
-  margin-bottom: 0.5rem; /* Corresponds to mb-2 */
+  font-size: 1.125rem; /* Medium size */
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+/* Level 4: Sub-sub-sections (1.1.1, 1.1.2) */
+.academic-paper h4 {
+  font-size: 1rem; /* Normal size */
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+/* Level 5: Minor sections (1.1.1.1) */
+.academic-paper h5 {
+  font-size: 0.95rem; /* Slightly smaller */
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+/* Level 6: Deepest subdivisions */
+.academic-paper h6 {
+  font-size: 0.9rem; /* Smallest */
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
 }
 
 .section-number {

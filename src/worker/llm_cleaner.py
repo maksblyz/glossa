@@ -4,63 +4,101 @@ SYSTEM = """
 You are an expert academic document analyzer. Your job is to convert raw text chunks and vision objects into a structured JSON array describing components to render. You MUST follow all rules precisely and use all provided context.
 
 **Component Types:**
-1. **Heading**: Section titles and headers
+1. **Title**: Main document title (typically only one per document)
+   - `component`: "Title"
+   - `props`: { "text": string }
+
+2. **Abstract**: Abstract section with title and content
+   - `component`: "Abstract"
+   - `props`: { "title": string, "content": string }
+
+3. **Heading**: Section titles and headers
    - `component`: "Heading"
    - `props`: { "text": string, "level": number (1-6), "sectionNumber": string? }
 
-2. **Text**: Body paragraphs and sentences
+4. **AuthorBlock**: Author information blocks (names, affiliations, emails)
+   - `component`: "AuthorBlock"
+   - `props`: { "text": string, "authors": string[] }
+
+5. **Footer**: Footer text (acknowledgments, equal contribution statements, funding info)
+   - `component`: "Footer"
+   - `props`: { "text": string }
+
+6. **Text**: Body paragraphs and sentences
    - `component`: "Text" 
    - `props`: { "text": string, "style": "paragraph" | "sentence" }
 
-3. **Equation**: Mathematical formulas
+4. **Equation**: Mathematical formulas
    - `component`: "Equation"
    - `props`: { "latex": string, "number": string?, "display": boolean }
 
-4. **List**: Ordered or unordered lists
+5. **List**: Ordered or unordered lists
    - `component`: "List"
    - `props`: { "items": string[], "ordered": boolean, "style": "bullet" | "number" | "letter" }
 
-5. **Blockquote**: Quotes and callouts
+6. **Blockquote**: Quotes and callouts
    - `component`: "Blockquote"
    - `props": { "text": string, "citation": string? }
 
-6. **Code**: Code blocks or inline code
+7. **Code**: Code blocks or inline code
    - `component": "Code"
    - `props": { "code": string, "language": string?, "inline": boolean }
 
-7. **FigureTitle**: Titles for figures (e.g., "Figure 1: The Transformer - model architecture")
+8. **FigureTitle**: Titles for figures (e.g., "Figure 1: The Transformer - model architecture")
    - `component": "FigureTitle"
    - `props": { "text": string, "figureNumber": string?, "type": "figure" | "table" | "image" }
 
-8. **FigureCaption**: Captions/descriptions for figures
+9. **FigureCaption**: Captions/descriptions for figures
    - `component": "FigureCaption"
    - `props": { "text": string, "figureNumber": string?, "type": "figure" | "table" | "image" }
 
-9. **Image**: Standalone images (positioned after title, before caption)
+10. **Image**: Standalone images (positioned after title, before caption)
    - `component": "Image"
    - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean, "figureNumber": string? }
 
-10. **InlineImage**: Images that are inline with text
+11. **InlineImage**: Images that are inline with text
    - `component": "InlineImage"
    - `props": { "src": string, "alt": string, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean }
 
-11. **ImageRow**: A row of grouped images (same group_id)
+12. **ImageRow**: A row of grouped images (same group_id)
    - `component": "ImageRow"
    - `props": { "images": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
 
-12. **Table**: Data tables (positioned after title, before caption)
+13. **Table**: Data tables (positioned after title, before caption)
    - `component": "Table"
    - `props": { "src": string, "alt": string, "width": number?, "height": number?, "relative_x": number, "relative_y": number, "relative_width": number, "relative_height": number, "group_id": string, "is_inline": boolean, "figureNumber": string? }
 
-13. **TableRow**: A row of grouped tables (same group_id)
+14. **TableRow**: A row of grouped tables (same group_id)
    - `component": "TableRow"
    - `props": { "tables": Array<{ src: string, alt: string, relative_x: number, relative_y: number, relative_width: number, relative_height: number, group_id: string, is_inline: boolean }> }
 
 **Formatting Rules:**
 1. **Structure**: Return ONLY a valid JSON array of component objects
 2. **Clickable Units**: Every distinct unit (sentence, equation, blockquote, image, table) should be a separate component
-3. **Sentence-Level Granularity**: Break paragraphs into individual sentences. Each sentence should be a separate "Text" component with style "sentence"
-4. **Headings**: Identify numbered section titles (e.g., "1.2 Supervised learning"). Extract section numbers
+3. **Title Detection**: Identify the main document title (typically only one per document). The title usually appears at the very top of the first page, before author information. It should be the most prominent heading and often describes the main topic or contribution of the paper. IMPORTANT: Only create ONE "Title" component per document. Do NOT create multiple titles. If you see multiple potential titles, choose the one that is most prominent and appears first. Section headings, figure titles, and other text should NOT be marked as the main title.
+4. **Abstract Detection**: Identify the Abstract section. The Abstract typically appears after the title and author information, and contains a summary of the paper's main contributions and findings. When you find text that starts with "Abstract" or contains abstract-like content (summary of the paper's contributions, methodology, and results), create an "Abstract" component with:
+   - `title`: "Abstract" (always use this exact title)
+   - `content`: The full abstract text content (excluding the word "Abstract" itself)
+   
+   IMPORTANT: The Abstract should be treated as a special section, not as a regular heading. Do NOT create a Heading component for "Abstract" - only create an Abstract component.
+5. **Author Block Detection**: Identify author information blocks (names, affiliations, emails) and create "AuthorBlock" components. These typically appear at the top of papers and contain email addresses, university names, and author affiliations. IMPORTANT: Group ALL authors from the same paper into a SINGLE "AuthorBlock" component. Do NOT create separate AuthorBlock components for each individual author. Instead, collect all author information (names, affiliations, emails) and create one AuthorBlock component containing all authors. The `text` property should contain the full author block text with all authors, and the `authors` property should be an array of all author information strings.
+5. **Footer Detection**: Identify footer text that appears at the bottom of pages. Footer text typically contains acknowledgments, equal contribution statements, funding information, or other supplementary information. Create "Footer" components for such text. Footer text should be treated as regular body text, not as headings or emphasized content.
+6. **Sentence-Level Granularity**: Break paragraphs into individual sentences. Each sentence should be a separate "Text" component with style "sentence"
+7. **Headings**: Identify numbered section titles and assign appropriate heading levels based on their importance:
+   - **Level 1 (h1)**: Major sections like "Introduction", "Conclusion", "References" - these are the most important
+   - **Level 2 (h2)**: Top-level numbered sections like "1", "2", "3" - these are major divisions
+   - **Level 3 (h3)**: Sub-sections like "1.1", "1.2", "2.1", "2.2" - these are subdivisions of major sections
+   - **Level 4 (h4)**: Sub-sub-sections like "1.1.1", "1.1.2" - these are further subdivisions
+   - **Level 5 (h5)**: Minor sections like "1.1.1.1" - these are the most specific
+   - **Level 6 (h6)**: Any deeper subdivisions
+   
+   Extract section numbers and assign the appropriate level. For example:
+   - "1 Introduction" → level 1
+   - "2 Related Work" → level 1  
+   - "1.1 Background" → level 3
+   - "1.1.1 Historical Context" → level 4
+   
+   IMPORTANT: Do NOT treat "Abstract" as a heading. The Abstract should be handled by the Abstract Detection rule above.
 5. **Equations**: Identify LaTeX equations and extract equation numbers if present
 6. **Lists**: Group consecutive list items into List components
 7. **Figure Titles and Captions**: Identify figure/table titles (e.g., "Figure 1: The Transformer") and captions (descriptive text below figures). Create separate `FigureTitle` and `FigureCaption` components. Extract figure numbers when present.
@@ -214,6 +252,8 @@ def deduplicate_components(components):
     seen_tables = set()  # src URLs
     seen_titles = set()  # text
     seen_captions = set()  # text
+    seen_main_titles = set()  # text for main titles
+    title_found = False  # Track if we've found a title from page 1
     
     deduplicated_components = []
     
@@ -222,7 +262,18 @@ def deduplicate_components(components):
         comp_type = comp.get('component', '')
         props = comp.get('props', {})
         
-        if comp_type == 'Image':
+        if comp_type == 'Title':
+            # Only allow titles from page 1, and only the first one
+            if not title_found:
+                text = props.get('text', '')
+                if text:
+                    seen_main_titles.add(text)
+                    deduplicated_components.append(comp)
+                    title_found = True
+            # Skip all other titles
+            continue
+                
+        elif comp_type == 'Image':
             src = props.get('src', '')
             if src and src not in seen_images:
                 seen_images.add(src)

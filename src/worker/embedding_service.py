@@ -57,18 +57,26 @@ class EmbeddingService:
             settings=Settings(anonymized_telemetry=False)
         )
     
-    def parse_hierarchical_structure(self, html_content: str) -> Dict[str, Any]:
+    def parse_hierarchical_structure(self, content: str) -> Dict[str, Any]:
         """
-        Parse HTML content into a hierarchical structure with sections, paragraphs, and sentences.
+        Parse content into a hierarchical structure with sections, paragraphs, and sentences.
+        Handles both HTML and plain text content.
         Returns a structured representation of the document.
         """
-        soup = BeautifulSoup(html_content, 'html.parser')
-        
-        # Find the academic-paper div
-        paper_div = soup.find('div', class_='academic-paper')
-        if not paper_div:
-            # If no academic-paper div, use the whole content
-            paper_div = soup
+        # Check if content looks like HTML
+        if '<' in content and '>' in content:
+            # Parse as HTML
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # Find the academic-paper div
+            paper_div = soup.find('div', class_='academic-paper')
+            if not paper_div:
+                # If no academic-paper div, use the whole content
+                paper_div = soup
+        else:
+            # Parse as plain text
+            paper_div = None
+            text_content = content
         
         document_structure = {
             'sections': [],
@@ -79,7 +87,96 @@ class EmbeddingService:
         current_paragraph = None
         chunk_id_counter = 0
         
-        # Process all elements in order
+        # Handle plain text content
+        if paper_div is None:
+            # Process plain text content
+            lines = text_content.split('\n')
+            current_paragraph_text = ""
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    # Empty line - end current paragraph
+                    if current_paragraph_text:
+                        # Process the accumulated paragraph
+                        sentences = re.split(r'(?<=[.!?])\s+', current_paragraph_text)
+                        for i, sentence in enumerate(sentences):
+                            sentence = sentence.strip()
+                            if sentence and len(sentence) >= 10:
+                                sentence_id = str(uuid.uuid4())
+                                document_structure['chunks'].append({
+                                    'id': sentence_id,
+                                    'content': sentence,
+                                    'type': 'text',
+                                    'section_id': None,
+                                    'section_title': None,
+                                    'paragraph_id': str(uuid.uuid4()),
+                                    'paragraph_text': current_paragraph_text,
+                                    'sentence_index': i,
+                                    'chunk_index': chunk_id_counter,
+                                    'element_type': 'sentence'
+                                })
+                                chunk_id_counter += 1
+                        current_paragraph_text = ""
+                else:
+                    # Check if this looks like a heading (starts with number or is short)
+                    if (re.match(r'^\d+\.?\s*[A-Z]', line) or 
+                        (len(line) < 100 and line.isupper()) or
+                        line in ['Abstract', 'Introduction', 'Conclusion', 'References']):
+                        # This is likely a heading
+                        heading_id = str(uuid.uuid4())
+                        current_section = {
+                            'id': heading_id,
+                            'level': 2 if re.match(r'^\d+\.?\s*', line) else 1,
+                            'title': line,
+                            'paragraphs': []
+                        }
+                        document_structure['sections'].append(current_section)
+                        
+                        # Add heading as a chunk
+                        document_structure['chunks'].append({
+                            'id': heading_id,
+                            'content': line,
+                            'type': 'heading',
+                            'section_id': current_section['id'],
+                            'section_title': line,
+                            'paragraph_id': None,
+                            'paragraph_text': None,
+                            'chunk_index': chunk_id_counter,
+                            'element_type': 'heading'
+                        })
+                        chunk_id_counter += 1
+                    else:
+                        # This is paragraph text
+                        if current_paragraph_text:
+                            current_paragraph_text += " " + line
+                        else:
+                            current_paragraph_text = line
+            
+            # Process any remaining paragraph text
+            if current_paragraph_text:
+                sentences = re.split(r'(?<=[.!?])\s+', current_paragraph_text)
+                for i, sentence in enumerate(sentences):
+                    sentence = sentence.strip()
+                    if sentence and len(sentence) >= 10:
+                        sentence_id = str(uuid.uuid4())
+                        document_structure['chunks'].append({
+                            'id': sentence_id,
+                            'content': sentence,
+                            'type': 'text',
+                            'section_id': current_section['id'] if current_section else None,
+                            'section_title': current_section['title'] if current_section else None,
+                            'paragraph_id': str(uuid.uuid4()),
+                            'paragraph_text': current_paragraph_text,
+                            'sentence_index': i,
+                            'chunk_index': chunk_id_counter,
+                            'element_type': 'sentence'
+                        })
+                        chunk_id_counter += 1
+            
+            return document_structure
+        
+        # Process HTML elements
         for element in paper_div.children:
             if element.name is None:  # Skip text nodes
                 continue
@@ -183,7 +280,7 @@ class EmbeddingService:
         
         return document_structure
     
-    def create_embeddings(self, file_name: str, html_content: str) -> Dict[str, Any]:
+    def create_embeddings(self, file_name: str, content: str) -> Dict[str, Any]:
         """
         Create embeddings for all chunks in a document with hierarchical structure.
         Returns metadata about the embedding collection.
@@ -202,7 +299,7 @@ class EmbeddingService:
         collection = self.chroma_client.create_collection(collection_name)
         print("Created collection:", collection_name)
         # Parse hierarchical structure
-        document_structure = self.parse_hierarchical_structure(html_content)
+        document_structure = self.parse_hierarchical_structure(content)
         chunks = document_structure['chunks']
         if not chunks:
             return {
