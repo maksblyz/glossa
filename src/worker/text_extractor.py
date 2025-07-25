@@ -22,10 +22,24 @@ class TextExtractor(BaseExtractor):
 
                 # Reconstruct the text content of the block
                 block_text = ""
+                lines = []
                 for line in block.get("lines", []):
                     # Join spans within a line with a space
                     line_text = " ".join([span.get("text", "") for span in line.get("spans", [])])
-                    block_text += line_text + " " # Add the reconstructed line and a space
+                    if line_text.strip():  # Only add non-empty lines
+                        # Clean up common PDF artifacts
+                        cleaned_line = line_text.strip()
+                        # Remove arrow symbols and other formatting artifacts
+                        cleaned_line = cleaned_line.replace('⇤', '').replace('⇥', '').replace('←', '').replace('→', '')
+                        # Remove other common symbols that might appear in author blocks
+                        cleaned_line = cleaned_line.replace('†', '').replace('‡', '').replace('*', '')
+                        # Remove multiple spaces
+                        cleaned_line = ' '.join(cleaned_line.split())
+                        if cleaned_line:
+                            lines.append(cleaned_line)
+                
+                # Join lines with newlines to preserve structure
+                block_text = "\n".join(lines)
 
                 # Skip empty blocks
                 if not block_text.strip():

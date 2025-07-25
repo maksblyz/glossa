@@ -221,13 +221,175 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
   
   // This function now primarily handles text-based components
   switch (type) {
-    case 'Heading':
+    case 'Title':
       return (
-        <div key={`heading-${props.text}`} className="heading-component">
-          {props.sectionNumber && <span className="section-number">{props.sectionNumber}</span>}
-          {React.createElement(`h${props.level || 2}`, {}, props.text)}
+        <div key={`title-${props.text}`} className="title-component" style={{
+          textAlign: 'center',
+          fontSize: '2.5rem',
+          fontWeight: 'bold',
+          marginTop: '3rem',
+          marginBottom: '3rem',
+          lineHeight: '1.1',
+          color: '#000'
+        }}>
+          <span 
+            className="clickable-sentence"
+            onClick={(e) => onComponentClick(e, props.text, 'Title')}
+          >
+            {props.text}
+          </span>
         </div>
       );
+    case 'Abstract':
+        return (
+          <div key={`abstract-${props.title}`} className="abstract-component" style={{
+            textAlign: 'center',
+            marginTop: '2rem',
+            marginBottom: '-1rem'
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '1rem',
+              textAlign: 'center'
+            }}>
+              {props.title}
+            </h2>
+            <div style={{
+              textAlign: 'center',
+              fontSize: '1rem',
+              lineHeight: '1.5',
+              maxWidth: '600px',
+              margin: '0 auto'
+            }}>
+              <span 
+                className="clickable-sentence"
+                onClick={(e) => onComponentClick(e, props.content, 'Abstract')}
+                dangerouslySetInnerHTML={renderMath(props.content)}
+              />
+            </div>
+          </div>
+        );
+    case 'Heading':
+      // Check if the text already starts with the section number to avoid duplication
+      const sectionNumber = props.sectionNumber;
+      const headingText = props.text;
+      let displayText = headingText;
+      
+      // If we have a section number and the text starts with it, remove it from the text
+      if (sectionNumber && headingText.startsWith(sectionNumber)) {
+        displayText = headingText.substring(sectionNumber.length).trim();
+      }
+      
+      return (
+        <div key={`heading-${props.text}`} className="heading-component">
+          {React.createElement(`h${props.level || 2}`, {}, 
+            <>
+              {sectionNumber && <span className="section-number">{sectionNumber}</span>}
+              {displayText}
+            </>
+          )}
+        </div>
+      );
+    case 'AuthorBlock':
+      // Parse the author block into individual authors
+      const authorLines = props.text.split('\n');
+      const authors = [];
+      let currentAuthor = [];
+      
+      for (const line of authorLines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine) {
+          // Check if this line looks like an email (contains @)
+          if (trimmedLine.includes('@')) {
+            // This is an email, so it's the end of an author block
+            currentAuthor.push(trimmedLine);
+            if (currentAuthor.length > 0) {
+              authors.push([...currentAuthor]);
+            }
+            currentAuthor = [];
+          } else {
+            // This is a name or affiliation
+            currentAuthor.push(trimmedLine);
+          }
+        }
+      }
+      
+      // Add any remaining author
+      if (currentAuthor.length > 0) {
+        authors.push(currentAuthor);
+      }
+      
+      // Group authors into rows of 3
+      const authorRows = [];
+      const authorsPerRow = 3;
+      
+      for (let i = 0; i < authors.length; i += authorsPerRow) {
+        authorRows.push(authors.slice(i, i + authorsPerRow));
+      }
+      
+      return (
+        <div key={`author-block-${props.text}`} className="author-block-component">
+          <div 
+            style={{ 
+              marginBottom: '1rem',
+              color: '#666',
+              lineHeight: '1.4'
+            }}
+          >
+            {authorRows.map((row, rowIndex) => (
+              <div key={rowIndex} style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '1.5rem',
+                marginBottom: rowIndex < authorRows.length - 1 ? '1rem' : '0',
+                flexWrap: 'wrap',
+                maxWidth: '100%'
+              }}>
+                {row.map((author, authorIndex) => (
+                  <div key={authorIndex} style={{
+                    textAlign: 'center',
+                    padding: '0.5rem',
+                    width: '180px',
+                    minWidth: '160px',
+                    maxWidth: '200px',
+                    flexShrink: 0
+                  }}>
+                    {author.map((line, lineIndex) => (
+                      <div key={lineIndex} style={{
+                        marginBottom: lineIndex === 0 ? '0.25rem' : '0.125rem',
+                        fontWeight: lineIndex === 0 ? '600' : '400',
+                        fontSize: lineIndex === 0 ? '0.9rem' : '0.8rem',
+                        color: lineIndex === 0 ? '#374151' : '#6b7280'
+                      }}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    case 'Footer':
+        return (
+          <div key={`footer-${props.text}`} className="footer-component" style={{
+            fontSize: '0.9rem',
+            color: '#666',
+            fontStyle: 'normal',
+            fontWeight: 'normal',
+            marginTop: '1rem',
+            marginBottom: '1rem',
+            lineHeight: '1.4'
+          }}>
+            <span 
+              className="clickable-sentence"
+              onClick={(e) => onComponentClick(e, props.text, 'Footer')}
+              dangerouslySetInnerHTML={renderMath(props.text)}
+            />
+          </div>
+        );
     case 'Text':
         return (
           <span 
