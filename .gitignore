@@ -43,3 +43,15 @@ next-env.d.ts
 
 /src/generated/prisma
 .env*.local
+
+# ChromaDB and embedding databases
+/chroma_db/
+/src/worker/chroma_db/
+*.sqlite3
+*.db
+*.sqlite
+
+# Extracted images and temporary files
+/extracted_images/
+/src/worker/extracted_images/
+/public/pdf-assets/
