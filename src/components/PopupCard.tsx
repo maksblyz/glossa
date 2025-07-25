@@ -144,7 +144,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
           justifyContent: item.role === 'user' ? 'flex-end' : 'flex-start'
         }}
       >
-        <div className={`text-sm max-w-[80%] ${
+        <div className={`text-sm max-w-[100%] ${
           item.role === 'user' ? 'text-blue-600 font-medium' : 'text-gray-700'
         }`}>
           <div 
