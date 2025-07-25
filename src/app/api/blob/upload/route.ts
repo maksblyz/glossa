@@ -1,15 +1,46 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis';
-import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { db } from '@/db';
 
 const redis = Redis.fromEnv();
+
+// Function to extract original filename from blob pathname
+function extractOriginalFileName(pathname: string): string {
+    if (!pathname) return 'Untitled PDF';
+    
+    // Remove the random suffix that Vercel Blob adds
+    // The format is usually: originalname-randomSuffix.pdf
+    const withoutExtension = pathname.replace(/\.pdf$/i, '');
+    
+    // Split by the last dash and take the first part (original name)
+    const parts = withoutExtension.split('-');
+    if (parts.length > 1) {
+        // Remove the last part (random suffix) and join the rest
+        const originalName = parts.slice(0, -1).join('-');
+        return originalName || 'Untitled PDF';
+    }
+    
+    // If no random suffix found, return the name without .pdf extension
+    return withoutExtension || 'Untitled PDF';
+}
 
 export async function POST(req: Request) {
     try {
     const body = (await req.json()) as HandleUploadBody;
         console.log('Upload request body:', body);
+
+    // Get user ID from headers for token payload
+    let userId = null;
+    try {
+        const userHeader = req.headers.get('x-user-id');
+        if (userHeader) {
+            userId = userHeader;
+            console.log('User ID from header for token:', userId);
+        }
+    } catch (error) {
+        console.error('Error reading user ID from headers:', error);
+    }
 
     return handleUpload({
         request: req,
@@ -21,37 +52,35 @@ export async function POST(req: Request) {
                 return {
             allowedContentTypes: ['application/pdf'],
                     addRandomSuffix: true,
-            tokenPayload: JSON.stringify({})
+            tokenPayload: JSON.stringify({ userId })
                 };
             },
 
         //called once browser PUTS file
-        onUploadCompleted: async ({ blob }) => {
+        onUploadCompleted: async ({ blob, tokenPayload }) => {
                 try {
                     console.log('Upload completed for blob:', blob.pathname);
                     console.log('Blob URL:', blob.url);
                     
-                    // Get the current user from the request headers
-                    const authHeader = req.headers.get('authorization');
-                    console.log('Auth header:', authHeader);
-                    
+                    // Get the current user from token payload
                     let userId = null;
-                    if (authHeader) {
-                        try {
-                            const { getUser } = getKindeServerSession();
-                            const user = await getUser();
-                            console.log('User found:', !!user);
-                            console.log('User ID:', user?.id);
-                            userId = user?.id || null;
-                        } catch (authError) {
-                            console.error('Auth error:', authError);
+                    try {
+                        if (tokenPayload) {
+                            const payload = JSON.parse(tokenPayload);
+                            userId = payload.userId;
+                            console.log('User ID from token payload:', userId);
+                        } else {
+                            console.log('No token payload found');
                         }
+                    } catch (authError) {
+                        console.error('Error reading user ID from token payload:', authError);
+                        // Continue without user ID - file will be created but not associated with user
                     }
                     
                     // Create file record
                     const fileRecord = await db.file.create({
                         data: {
-                            name: blob.pathname || 'Untitled PDF',
+                            name: extractOriginalFileName(blob.pathname),
                             url: blob.url,
                             key: blob.pathname || '',
                             userId: userId,
@@ -66,7 +95,7 @@ export async function POST(req: Request) {
                 } catch (error) {
                     console.error('Error in onUploadCompleted:', error);
                     // Still add to Redis queue even if database save fails
-            await redis.lpush('pdf_jobs', JSON.stringify({url: blob.url, name: blob.pathname}))
+                    await redis.lpush('pdf_jobs', JSON.stringify({url: blob.url, name: blob.pathname}))
                 }
             }
     }).then(json => NextResponse.json(json));

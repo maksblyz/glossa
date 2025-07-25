@@ -19,6 +19,9 @@ const UploadDropzone = () => {
     const [isUploading, setIsUploading] = useState<boolean>(false)
     const [uploadProgress, setUploadProgress] = useState<number>(0)
 
+    // Get current user ID
+    const { data: userData } = trpc.getCurrentUser.useQuery();
+
     const startSimulatedProgress = () => {
         setUploadProgress(0) 
 
@@ -46,6 +49,9 @@ const UploadDropzone = () => {
                 access: 'public',
                 handleUploadUrl: '/api/blob/upload',
                 onUploadProgress: (p) => setUploadProgress(p.percentage),
+                headers: userData?.userId ? {
+                    'X-User-ID': userData.userId
+                } : undefined
             });
             clearInterval(progressInterval)
             setUploadProgress(100)

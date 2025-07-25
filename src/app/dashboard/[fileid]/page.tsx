@@ -3,8 +3,8 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server"
 import { notFound, redirect } from "next/navigation"
 import { KindeUser } from "@kinde-oss/kinde-auth-nextjs"
 
-export default async function Page({ params }: { params: { fileid: string } }) {
-    const { fileid } = params
+export default async function Page({ params }: { params: Promise<{ fileid: string }> }) {
+    const { fileid } = await params;
     const { getUser } = getKindeServerSession()
     const rawUser = await getUser()
     const user = rawUser as KindeUser | null

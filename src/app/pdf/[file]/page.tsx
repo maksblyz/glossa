@@ -23,10 +23,11 @@ async function fetchObjects(file: string) {
     }
 }
 
-export default async function PDFStub({ params }: { params:  { file: string } }) {
-    console.log('Processing file:', params.file);
+export default async function PDFStub({ params }: { params: Promise<{ file: string }> }) {
+    const { file } = await params;
+    console.log('Processing file:', file);
     // Decode the file parameter since it's URL encoded
-    const decodedFile = decodeURIComponent(params.file);
+    const decodedFile = decodeURIComponent(file);
     console.log('Decoded file:', decodedFile);
     
     try {
