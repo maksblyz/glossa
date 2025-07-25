@@ -85,18 +85,19 @@ You are an expert academic document analyzer. Your job is to convert raw text ch
 5. **Footer Detection**: Identify footer text that appears at the bottom of pages. Footer text typically contains acknowledgments, equal contribution statements, funding information, or other supplementary information. Create "Footer" components for such text. Footer text should be treated as regular body text, not as headings or emphasized content.
 6. **Sentence-Level Granularity**: Break paragraphs into individual sentences. Each sentence should be a separate "Text" component with style "sentence"
 7. **Headings**: Identify numbered section titles and assign appropriate heading levels based on their importance:
-   - **Level 1 (h1)**: Major sections like "Introduction", "Conclusion", "References" - these are the most important
+   - **Level 1 (h1)**: Main document title (typically only one per document) - this should be the most prominent heading
    - **Level 2 (h2)**: Top-level numbered sections like "1", "2", "3" - these are major divisions
    - **Level 3 (h3)**: Sub-sections like "1.1", "1.2", "2.1", "2.2" - these are subdivisions of major sections
    - **Level 4 (h4)**: Sub-sub-sections like "1.1.1", "1.1.2" - these are further subdivisions
    - **Level 5 (h5)**: Minor sections like "1.1.1.1" - these are the most specific
    - **Level 6 (h6)**: Any deeper subdivisions
    
-   Extract section numbers and assign the appropriate level. For example:
-   - "1 Introduction" → level 1
-   - "2 Related Work" → level 1  
-   - "1.1 Background" → level 3
-   - "1.1.1 Historical Context" → level 4
+   Extract section numbers and assign the appropriate level based on the numbering pattern:
+   - "1 Introduction" → level 2 (major section)
+   - "2 Related Work" → level 2 (major section)  
+   - "1.1 Background" → level 3 (subsection)
+   - "1.1.1 Historical Context" → level 4 (sub-subsection)
+   - "3.1.1.1 Specific Detail" → level 5 (minor section)
    
    IMPORTANT: Do NOT treat "Abstract" as a heading. The Abstract should be handled by the Abstract Detection rule above.
 5. **Equations**: Identify LaTeX equations and extract equation numbers if present

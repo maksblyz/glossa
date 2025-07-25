@@ -281,9 +281,40 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
         displayText = headingText.substring(sectionNumber.length).trim();
       }
       
+      // Determine the correct heading level based on section numbering
+      let headingLevel = props.level || 2;
+      
+      // Override the level based on section number pattern
+      if (sectionNumber) {
+        const parts = sectionNumber.split('.');
+        if (parts.length === 1) {
+          // Single number like "1", "2", "3" - these are major sections (h2)
+          headingLevel = 2;
+        } else if (parts.length === 2) {
+          // Double number like "3.1", "3.2" - these are subsections (h3)
+          headingLevel = 3;
+        } else if (parts.length === 3) {
+          // Triple number like "3.1.1" - these are sub-subsections (h4)
+          headingLevel = 4;
+        } else if (parts.length >= 4) {
+          // Deeper nesting - use h5 or h6
+          headingLevel = Math.min(parts.length + 1, 6);
+        }
+      }
+      
       return (
-        <div key={`heading-${props.text}`} className="heading-component">
-          {React.createElement(`h${props.level || 2}`, {}, 
+        <div key={`heading-${props.text}`} className="heading-component" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
+          {React.createElement(`h${headingLevel}`, {
+            style: {
+              fontSize: headingLevel === 1 ? '1.5rem' : 
+                       headingLevel === 2 ? '1.3rem' : 
+                       headingLevel === 3 ? '1.1rem' : 
+                       headingLevel === 4 ? '1rem' : 
+                       headingLevel === 5 ? '0.9rem' : '0.85rem',
+              fontWeight: 'bold',
+              margin: 0
+            }
+          }, 
             <>
               {sectionNumber && <span className="section-number">{sectionNumber}</span>}
               {displayText}
@@ -557,6 +588,24 @@ export default function ComponentPDFViewer({
         .academic-paper { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.4; text-align: justify; hyphens: auto; color: black; overflow-wrap: break-word;}
         .figure-title-component { text-align: center; font-weight: bold; margin: 1rem 0 0.5rem 0; }
         .figure-caption-component { text-align: center; font-style: italic; margin: 0.5rem 0 1rem 0; color: #666; }
+        
+        /* Heading styles - target heading components directly */
+        .heading-component h1 { font-size: 1.5rem; font-weight: bold; margin: 0; }
+        .heading-component h2 { font-size: 1.3rem; font-weight: bold; margin: 0; }
+        .heading-component h3 { font-size: 1.1rem; font-weight: bold; margin: 0; }
+        .heading-component h4 { font-size: 1rem; font-weight: bold; margin: 0; }
+        .heading-component h5 { font-size: 0.9rem; font-weight: bold; margin: 0; }
+        .heading-component h6 { font-size: 0.85rem; font-weight: bold; margin: 0; }
+        
+        /* Also target headings within academic-paper for consistency */
+        .academic-paper h1 { font-size: 1.5rem; font-weight: bold; margin: 1.5rem 0 1rem 0; }
+        .academic-paper h2 { font-size: 1.3rem; font-weight: bold; margin: 1.5rem 0 1rem 0; }
+        .academic-paper h3 { font-size: 1.1rem; font-weight: bold; margin: 1.5rem 0 1rem 0; }
+        .academic-paper h4 { font-size: 1rem; font-weight: bold; margin: 1.5rem 0 1rem 0; }
+        .academic-paper h5 { font-size: 0.9rem; font-weight: bold; margin: 1.5rem 0 1rem 0; }
+        .academic-paper h6 { font-size: 0.85rem; font-weight: bold; margin: 1.5rem 0 1rem 0; }
+        
+        .section-number { font-weight: bold; margin-right: 0.5rem; }
       `}</style>
       <div className="w-full flex flex-col items-center py-12 bg-gray-100" onClick={handleOutsideClick}>
         {pages.map((page) => (
