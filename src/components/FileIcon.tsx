@@ -145,24 +145,22 @@ export default function FileIcon({file, onMove, onDelete}: Props) {
                 'bg-gray-400'
               }`} />
             </div>
-            
-            {/* Delete button - appears on hover */}
-            {isHovered && (
-              <div className="absolute -top-2 -right-2">
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="h-6 w-6 p-0 rounded-full"
-                  onClick={handleDelete}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
           </div>
           <span className="block w-20 truncate text-xs font-medium text-gray-700 mt-1">
             {file.name}
           </span>
+          
+          {/* Delete button - appears on hover underneath the filename */}
+          {isHovered && (
+            <div className="mt-1">
+              <button
+                className="text-black hover:text-gray-700 transition-colors"
+                onClick={handleDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </Link>
     </div>
