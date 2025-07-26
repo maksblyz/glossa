@@ -37,10 +37,11 @@ const PopupCard: React.FC<PopupCardProps> = ({
   imageUrl,
 }) => {
   const [localError, setLocalError] = useState('');
+  const [streamingText, setStreamingText] = useState('');
   const [debouncedCompletion, setDebouncedCompletion] = useState('');
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /* ――― ai-sdk hooks ――― */
   const {
@@ -105,13 +106,26 @@ const PopupCard: React.FC<PopupCardProps> = ({
 
   /* ――― flatten data for Virtuoso (explanation + chat) ――― */
   type ListItem =
-    | { kind: 'exp'; content: string }
-    | { kind: 'msg'; role: string; content: string };
+    | { kind: 'exp'; content: string; id: string }
+    | { kind: 'msg'; role: string; content: string; id: string };
 
   const listData: ListItem[] = useMemo(() => {
     const arr: ListItem[] = [];
-    if (debouncedCompletion) arr.push({ kind: 'exp', content: debouncedCompletion });
-    messages.forEach(m => arr.push({ kind: 'msg', role: m.role, content: m.content }));
+    if (debouncedCompletion) {
+      arr.push({ 
+        kind: 'exp', 
+        content: debouncedCompletion, 
+        id: 'explanation' 
+      });
+    }
+    messages.forEach((m, index) => {
+      arr.push({ 
+        kind: 'msg', 
+        role: m.role, 
+        content: m.content, 
+        id: `msg-${index}` 
+      });
+    });
     return arr;
   }, [debouncedCompletion, messages]);
 
@@ -127,11 +141,12 @@ const PopupCard: React.FC<PopupCardProps> = ({
     return { __html: html };
   };
 
-  /* ――― item renderer ――― */
-  const renderItem = (_: number, item: ListItem) => {
+  /* ――― item renderer with memoization for append-only rendering ――― */
+  const renderItem = React.useCallback((_: number, item: ListItem) => {
     if (item.kind === 'exp') {
       return (
         <div
+          key={item.id}
           className="text-sm text-gray-700 leading-relaxed virtuoso-content"
           dangerouslySetInnerHTML={renderText(item.content)}
         />
@@ -139,6 +154,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
     }
     return (
       <div 
+        key={item.id}
         className="w-full flex"
         style={{ 
           justifyContent: item.role === 'user' ? 'flex-end' : 'flex-start'
@@ -165,7 +181,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
         </div>
       </div>
     );
-  };
+  }, []);
 
   /* ──────────────────────────────────────────────────────────── */
 

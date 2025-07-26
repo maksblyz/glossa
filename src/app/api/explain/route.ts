@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
             },
             ...messages.slice(1), // Include all subsequent messages
           ],
-          temperature: 0.2,
+          temperature: 0.0,
           maxTokens: 1024,
           onError: ({ error }) => console.error('stream error:', error),
         });
