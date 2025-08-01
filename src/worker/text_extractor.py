@@ -16,7 +16,7 @@ class TextExtractor(BaseExtractor):
             # Extract text blocks from the page as a dictionary
             page_blocks = page.get_text("dict")["blocks"]
             for block in page_blocks:
-                # We are only interested in text blocks (type 0)
+                # only text blocks - type 0
                 if block.get("type", 1) != 0:
                     continue
 

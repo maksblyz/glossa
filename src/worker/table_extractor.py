@@ -87,7 +87,7 @@ class TableExtractor(BaseExtractor):
                         all_text = page.get_text("text").strip()
                         print(f"Page {page_number} - ALL text on page: '{all_text[:500]}...'")
                     
-                    # If no content found, try with a slightly expanded bbox (in case of coordinate system mismatch)
+                    # If no content found, try with a slightly expanded bbox
                     if len(text_content) == 0:
                         print(f"Page {page_number} - No content found, trying expanded bbox")
                         expanded_rect = fitz.Rect(max(0, x0-10), max(0, y0-10), min(pix.w, x1+10), min(pix.h, y1+10))
@@ -120,14 +120,13 @@ class TableExtractor(BaseExtractor):
                     # Check if this looks like an author block
                     is_author_block = has_emails or any(indicator in text_lower for indicator in author_indicators)
                     
-                    # Additional check: if it has both author names and emails, it's definitely an author block
+                    # if it has both author names and emails, it's an author block
                     if has_author_names and has_emails:
                         is_author_block = True
-                    
-                    # Debug: Print detection results
+                
                     print(f"Page {page_number} - Author detection: emails={has_emails}, names={has_author_names}, is_author_block={is_author_block}")
                     
-                    # Additional check: if it's in the top 30% of the page and has any author indicators, reject it
+                    # if it's in the top 30% of the page and has any author indicators, reject it
                     page_height = pix.h
                     top_threshold = page_height * 0.3
                     in_top_30_percent = y0 < top_threshold
@@ -137,7 +136,6 @@ class TableExtractor(BaseExtractor):
                         print(f"Rejected author block on page {page_number}: early detection (position-based)")
                         continue
                     
-                    # Additional check: if more than 10% of lines look like author info, it's likely an author block
                     lines = text_content.split('\n')
                     name_affiliation_lines = 0
                     total_lines = len(lines)

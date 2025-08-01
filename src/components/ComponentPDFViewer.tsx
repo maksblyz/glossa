@@ -30,9 +30,9 @@ type PageData = {
   page_height: number;
 };
 
-// --- Component Rendering Logic ---
+// Component Rendering Logic
 
-// Groups sentences into paragraphs for better text flow and handles all component types
+// Groups sentences into paragraphs
 function renderComponentsWithParagraphs(components: Component[], onComponentClick: (event: React.MouseEvent, content: string, type: string) => void): React.ReactElement[] {
   const result: React.ReactElement[] = [];
   let currentParagraph: Component[] = [];
@@ -69,7 +69,7 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
       // Single image
       groupedComponents.push(group[0]);
     } else {
-      // Multiple images in a group - create a group component
+      // Multiple images in a group = create a group component
       groupedComponents.push({
         component: 'ImageGroup',
         props: { images: group }
@@ -82,7 +82,7 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
       // Single table
       groupedComponents.push(group[0]);
     } else {
-      // Multiple tables in a group - create a group component
+      // Multiple tables in a group = create a group component
       groupedComponents.push({
         component: 'TableGroup',
         props: { tables: group }
@@ -97,7 +97,6 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
     return aIndex - bIndex;
   });
 
-  // Now render the grouped components
   for (let i = 0; i < groupedComponents.length; i++) {
     const component = groupedComponents[i];
     
@@ -193,7 +192,7 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
         currentParagraph = [];
       }
       
-      // Render other components (Heading, FigureTitle, FigureCaption, etc.)
+      // Render other components (Heading, FigureTitle etc)
       result.push(<div key={`component-${i}`}>{renderComponentJSX(component, onComponentClick)}</div>);
     }
   }
@@ -219,7 +218,7 @@ function renderComponentsWithParagraphs(components: Component[], onComponentClic
 function renderComponentJSX(component: Component, onComponentClick: (event: React.MouseEvent, content: string, type: string) => void): React.ReactElement {
   const { component: type, props } = component;
   
-  // This function now primarily handles text-based components
+  // handle text-based components
   switch (type) {
     case 'Title':
       return (
@@ -271,7 +270,7 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
           </div>
         );
     case 'Heading':
-      // Check if the text already starts with the section number to avoid duplication
+      // Check if text already starts with section number to avoid duplication
       const sectionNumber = props.sectionNumber;
       const headingText = props.text;
       let displayText = headingText;
@@ -288,13 +287,13 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
       if (sectionNumber) {
         const parts = sectionNumber.split('.');
         if (parts.length === 1) {
-          // Single number like "1", "2", "3" - these are major sections (h2)
+          // single number like "1": major sections (h2)
           headingLevel = 2;
         } else if (parts.length === 2) {
-          // Double number like "3.1", "3.2" - these are subsections (h3)
+          // Double number like "3.1": subsections (h3)
           headingLevel = 3;
         } else if (parts.length === 3) {
-          // Triple number like "3.1.1" - these are sub-subsections (h4)
+          // Triple number like "3.1.1": sub-subsections (h4)
           headingLevel = 4;
         } else if (parts.length >= 4) {
           // Deeper nesting - use h5 or h6
@@ -331,7 +330,7 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
       for (const line of authorLines) {
         const trimmedLine = line.trim();
         if (trimmedLine) {
-          // Check if this line looks like an email (contains @)
+          // Check if line looks like an email (contains @)
           if (trimmedLine.includes('@')) {
             // This is an email, so it's the end of an author block
             currentAuthor.push(trimmedLine);
@@ -460,13 +459,12 @@ function renderComponentJSX(component: Component, onComponentClick: (event: Reac
           ))}
         </ListTag>
       );
-    // Other text-based components like Blockquote, Code can be added here
     default:
-      return <></>; // Return empty for components handled by visionObjects
+      return <></>;
   }
 }
 
-// --- Main Viewer Component ---
+// Main Viewer
 export default function ComponentPDFViewer({
   objects,
   fileName,
@@ -487,17 +485,16 @@ export default function ComponentPDFViewer({
     }
     
     if (obj.type === 'components') {
-      // The content of 'components' type is an object { components: [...] }
       const content = (typeof obj.content === 'string') ? JSON.parse(obj.content) : obj.content;
       acc[pageNum].components.push(...(content.components || []));
     } else {
-      // Other types like 'image', 'table' are vision objects
+      // image, table == vision objects
       acc[pageNum].visionObjects.push(obj);
     }
     return acc;
   }, {} as Record<number, PageData>);
 
-  // 2. Convert the grouped data into a sorted array of pages
+  // 2. Convert the grouped data into sorted array of pages
   const pages: PageData[] = Object.values(pagesData).sort((a, b) => a.pageNumber - b.pageNumber);
   
   // Standard US Letter: 8.5 x 11 inches at 96dpi = 816 x 1056 px
@@ -624,7 +621,7 @@ export default function ComponentPDFViewer({
               <div className="page-number">{page.pageNumber}</div>
             </div>
             <div className="academic-paper">
-              {/* Render all components in order (text, images, tables, etc.) */}
+              {/* Render all components in order (text, images etc.) */}
               {renderComponentsWithParagraphs(page.components, handleComponentClick)}
             </div>
           </div>

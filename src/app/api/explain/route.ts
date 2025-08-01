@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { streamText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
-export const runtime = 'edge';          // use Vercel Edge Runtime (flushes chunks asap)
-export const dynamic = 'force-dynamic'; // opt-out of Next.js static caching
+export const runtime = 'edge'; 
+export const dynamic = 'force-dynamic';
 export const maxDuration = 60; 
 
 const PYTHON_API_URL = 'http://127.0.0.1:5328/context';
@@ -12,9 +12,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    // Check if this is a chat request (has messages array)
+    // Check if this is a chat request
     if (body.messages && Array.isArray(body.messages)) {
-      // Handle chat conversation
+      // Handle chat
       const { messages, fileName, type, imageUrl, initialExplanation } = body;
       
       if (!fileName) {
@@ -24,8 +24,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // For chat, we need to handle the conversation context
-      // The first message should contain the original content and image
+      // first message should contain the original content and image
       const firstMessage = messages[0];
       let context = '';
       
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
         ? 'You are an expert academic explainer. Provide concise, direct answers to follow-up questions about this data table.'
         : 'You are an expert academic explainer. Provide concise, direct answers to follow-up questions about this content.';
 
-      // If we have an image, we need to include it in the first message
+      // If there is an image, include it in the first message
       if (imageUrl && (type === 'Image' || type === 'Table')) {
         const result = streamText({
           model: openai('gpt-4o-mini'),
@@ -97,7 +96,7 @@ export async function POST(req: NextRequest) {
         return result.toDataStreamResponse();
       }
     } else {
-      // Handle initial explanation (existing logic)
+      // Handle initial explanation
       const { content, fileName, type, imageUrl } = body;
 
       if (!content || !fileName)
@@ -120,7 +119,7 @@ export async function POST(req: NextRequest) {
 
       // Handle different content types
       if ((type === 'Image' || type === 'Table') && imageUrl) {
-        // For images and tables, we'll use the image URL directly with the AI model
+        // For images and tables, use the image URL directly with the AI model
         const promptText = type === 'Image' 
           ? `The following is an image from a document. Please explain what you see in this image in 3-5 sentences for a high-school reader.\n\nContext:\n${context || 'None'}`
           : `The following is a data table from a document. Please analyze this table and explain its key findings, structure, and significance in 3-5 sentences for a high-school reader.\n\nContext:\n${context || 'None'}`;

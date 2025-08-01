@@ -5,7 +5,6 @@ import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useCompletion, useChat } from '@ai-sdk/react';
 import renderMath from './renderMath';
 
-/* ――― shadcn / radix UI parts ――― */
 import {
   Card,
   CardHeader,
@@ -26,8 +25,6 @@ interface PopupCardProps {
   imageUrl?: string;
 }
 
-/* ─────────────────────────────────────────────────────────────── */
-
 const PopupCard: React.FC<PopupCardProps> = ({
   position,
   content,
@@ -43,7 +40,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  /* ――― ai-sdk hooks ――― */
+  /* ai-sdk hooks */
   const {
     completion,
     complete,
@@ -72,11 +69,11 @@ const PopupCard: React.FC<PopupCardProps> = ({
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     // First, call the original submit handler to send the message
     handleSubmit(e);
-    // Then, immediately blur the input to prevent the "jump back"
+    // immediately blur the input to prevent jump back
     inputRef.current?.blur();
   };
 
-  /* ――― request explanation exactly once per payload ――― */
+  /* request explanation once per payload  */
   useEffect(() => {
     const serialized = String(content);
     if (!serialized || !fileName) return;
@@ -87,7 +84,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, fileName, type, imageUrl]);
 
-  /* ――― debounce completion updates ――― */
+  /* debounce completion updates */
   useEffect(() => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -104,7 +101,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
     };
   }, [completion]);
 
-  /* ――― flatten data for Virtuoso (explanation + chat) ――― */
+  /* flatten data for Virtuoso (explanation + chat) */
   type ListItem =
     | { kind: 'exp'; content: string; id: string }
     | { kind: 'msg'; role: string; content: string; id: string };
@@ -129,7 +126,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
     return arr;
   }, [debouncedCompletion, messages]);
 
-  /* ――― render text with math and markdown ――― */
+  /* render text with math and markdown */
   const renderText = (text: string) => {
     // First render math, then process markdown
     const mathRendered = renderMath(text);
@@ -141,7 +138,7 @@ const PopupCard: React.FC<PopupCardProps> = ({
     return { __html: html };
   };
 
-  /* ――― item renderer with memoization for append-only rendering ――― */
+  /* item renderer with memoization for append-only rendering */
   const renderItem = React.useCallback((_: number, item: ListItem) => {
     if (item.kind === 'exp') {
       return (
@@ -182,8 +179,6 @@ const PopupCard: React.FC<PopupCardProps> = ({
       </div>
     );
   }, []);
-
-  /* ──────────────────────────────────────────────────────────── */
 
   console.log('PopupCard render - position:', position, 'completion length:', completion?.length);
 

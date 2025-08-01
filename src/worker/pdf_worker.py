@@ -71,7 +71,7 @@ async def process_page_async(
 
         print(f"Processing page {page_num} through LLM...")
         
-        # Get components for THIS PAGE ONLY
+        # Get components for this page only
         page_components = await components_from_chunks(page_text, page_images, page_tables)
         
         # Filter out titles from pages other than page 1
@@ -79,7 +79,7 @@ async def process_page_async(
             page_components = [comp for comp in page_components if comp.get('component') != 'Title']
         
         if page_components:
-            # Store components with the CORRECT page number
+            # Store components with page number
             cursor.execute(
                 """
                 INSERT INTO pdf_objects (file, page, type, content, bbox, page_width, page_height)
@@ -104,7 +104,7 @@ def process_job(job:dict):
     try:
         print("Processing:", job["name"])
         
-        # Update file status to PROCESSING
+        # Update file status to processing
         cursor.execute(
             "UPDATE \"File\" SET \"uploadStatus\" = 'PROCESSING' WHERE \"key\" = %s",
             (job["name"],)
@@ -113,7 +113,7 @@ def process_job(job:dict):
         
         pdf_path = download_blob(job["url"])
 
-        # 1. Extract all objects from the PDF
+        # Extract all objects from the PDF
         text_objects = text_extractor.extract(pdf_path)
         image_objects = image_extractor.extract(pdf_path)
         table_objects = table_extractor.extract(pdf_path)
@@ -126,7 +126,7 @@ def process_job(job:dict):
         for tbl in table_objects:
             print(f"  id={tbl.get('id', tbl.get('filename'))} page={tbl.get('page')} filename={tbl.get('filename')} group_id={tbl.get('group_id', None)}")
 
-        # 2. Upload images and tables to CDN
+        # Upload images and tables to CDN
         if image_objects or table_objects:
             print("Uploading images and tables to CDN...")
             all_vision_objects = image_objects + table_objects
@@ -139,7 +139,7 @@ def process_job(job:dict):
             print(f"Uploaded {len([img for img in image_objects if 'cdn_url' in img])} images")
             print(f"Uploaded {len([table for table in table_objects if 'cdn_url' in table])} tables")
 
-        # 3. Group all extracted objects by their page number
+        # Group all extracted objects by their page number
         text_by_page = defaultdict(list)
         images_by_page = defaultdict(list)
         tables_by_page = defaultdict(list)
@@ -151,15 +151,15 @@ def process_job(job:dict):
         for obj in table_objects:
             tables_by_page[obj.get('page', 1)].append(obj)
 
-        # 4. Get page dimensions and number of pages
+        # Get page dimensions and number of pages
         doc = fitz.open(pdf_path)
         num_pages = len(doc)
         page_dims = {i + 1: (p.rect.width, p.rect.height) for i, p in enumerate(doc)}
         doc.close()
 
-        # 5. Process pages concurrently with asyncio
+        # Process pages concurrently with asyncio
         async def process_all_pages():
-            # Create a semaphore to limit concurrent LLM calls (adjust based on your API limits)
+            # Create a semaphore to limit concurrent LLM calls
             semaphore = asyncio.Semaphore(3)  # Process up to 3 pages concurrently
             
             # Create tasks for all pages
@@ -198,7 +198,7 @@ def process_job(job:dict):
         # Run the async processing
         all_components = asyncio.run(process_all_pages())
 
-        # 6. Create embeddings from a simple text representation of all components
+        # Create embeddings from a simple text representation of all components
         if all_components:
             # Create a simple string representation for embedding
             html_content_for_embedding = "\n".join([c['props'].get('text', '') for c in all_components if 'text' in c['props']])
@@ -209,7 +209,7 @@ def process_job(job:dict):
             )
             print(f"Embeddings created: {embedding_info.get('chunk_count')} chunks.")
 
-        # 7. Store vision objects (images and tables) with correct page numbers
+        # 7. Store vision objects with correct page numbers
         vision_objects = image_objects + table_objects
         if vision_objects:
             for obj in vision_objects:
@@ -241,7 +241,7 @@ def process_job(job:dict):
             )
             print(f"Stored {len(vision_objects)} vision objects.")
 
-        # Update file status to SUCCESS
+        # Update file status to success
         cursor.execute(
             "UPDATE \"File\" SET \"uploadStatus\" = 'SUCCESS' WHERE \"key\" = %s",
             (job["name"],)
@@ -251,7 +251,7 @@ def process_job(job:dict):
 
     except Exception as e:
         print(f"Error processing {job['name']}: {str(e)}")
-        # Update file status to FAILED
+        # Update file status to failed
         cursor.execute(
             "UPDATE \"File\" SET \"uploadStatus\" = 'FAILED' WHERE \"key\" = %s",
             (job["name"],)

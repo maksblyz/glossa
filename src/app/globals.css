@@ -143,7 +143,7 @@
   page-break-inside: auto;
 }
 
-/* Headings: Use standard CSS properties instead of @apply */
+/* Headings use standard CSS properties instead of @apply */
 .academic-paper h1,
 .academic-paper h2,
 .academic-paper h3,
@@ -158,23 +158,23 @@
   page-break-inside: avoid;
 }
 
-/* Level 1: Major sections (Abstract, Introduction, Conclusion, References) */
+/* Level 1: Major sections (Abstract etc etc) */
 .academic-paper h1 {
-  font-size: 1.5rem; /* Large and prominent */
+  font-size: 1.5rem;
   margin-top: 2rem;
   margin-bottom: 1rem;
-  font-weight: 800; /* Extra bold for importance */
+  font-weight: 800;
 }
 
-/* Level 2: Top-level numbered sections (1, 2, 3) */
+/* Level 2: Top-level numbered sections (1) */
 .academic-paper h2 {
-  font-size: 1.25rem; /* Large but not as prominent as h1 */
+  font-size: 1.25rem;
   margin-top: 1.75rem;
   margin-bottom: 0.75rem;
   font-weight: 700;
 }
 
-/* Level 3: Sub-sections (1.1, 1.2, 2.1, 2.2) */
+/* Level 3: Sub-sections (1.1) */
 .academic-paper h3 {
   font-size: 1.125rem; /* Medium size */
   margin-top: 1.25rem;
@@ -182,7 +182,7 @@
   font-weight: 600;
 }
 
-/* Level 4: Sub-sub-sections (1.1.1, 1.1.2) */
+/* Level 4: Sub-sub-sections (1.1.1) */
 .academic-paper h4 {
   font-size: 1rem; /* Normal size */
   margin-top: 1rem;
@@ -213,8 +213,8 @@
 
 /* Paragraphs */
 .academic-paper p {
-  margin-top: 0.5rem; /* @apply my-2 */
-  margin-bottom: 0.5rem; /* @apply my-2 */
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
   text-indent: 1.5em;
   page-break-inside: avoid;
   orphans: 3;
@@ -231,18 +231,18 @@
 
 /* Blockquotes */
 .academic-paper blockquote {
-  margin-top: 1rem; /* @apply my-4 */
-  margin-bottom: 1rem; /* @apply my-4 */
-  padding-left: 1.5rem; /* @apply px-6 - this only applies left padding */
-  font-size: 0.875rem; /* @apply text-sm */
-  color: #4a5568; /* A standard gray color for text-gray-700 */
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+  font-size: 0.875rem; 
+  color: #4a5568;
   font-style: italic;
   border-left: 2px solid #ccc;
   text-indent: 0;
   page-break-inside: avoid;
 }
 
-/* Equation Styling: Flexbox for alignment */
+/* Equation flexbox for alignment */
 .equation {
   @apply flex items-center justify-between my-4;
   display: block;
@@ -255,7 +255,7 @@
 }
 .equation-number {
   @apply text-right text-sm text-gray-700;
-  min-width: 40px; /* Ensure alignment */
+  min-width: 40px; /* alignment */
   padding-right: 5px;
 }
 
@@ -279,7 +279,7 @@
   text-indent: 0;
 }
 
-/* Page number: Positioned at top-right */
+/* Page number */
 .page-header {
   position: absolute;
   top: 48px; /* ~0.5in margin */
@@ -319,7 +319,7 @@
   page-break-after: avoid;
 }
 
-/* Ensure proper spacing between pages */
+/* proper spacing between pages */
 .page-break {
   page-break-before: always;
 }
@@ -345,19 +345,19 @@
 }
 
 .clickable-sentence:hover {
-  background-color: #f3f4f6 !important; /* Light grey background */
+  background-color: #f3f4f6 !important; /* grey background */
   border-color: #d1d5db !important; /* Grey border */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   transform: translateY(-1px) !important;
 }
 
 .clickable-sentence.selected-sentence {
-  background-color: #e5e7eb !important; /* Slightly darker grey for selected */
+  background-color: #e5e7eb !important; /* darker grey for selected */
   border-color: #9ca3af !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Ensure these styles work within academic paper context */
+/* styles for academic paper context */
 .academic-paper .clickable-sentence {
   cursor: pointer !important;
   transition: all 0.2s ease !important;
@@ -371,19 +371,19 @@
 }
 
 .academic-paper .clickable-sentence:hover {
-  background-color: #f3f4f6 !important; /* Light grey background */
+  background-color: #f3f4f6 !important; /*  grey background */
   border-color: #d1d5db !important; /* Grey border */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   transform: translateY(-1px) !important;
 }
 
 .academic-paper .clickable-sentence.selected-sentence {
-  background-color: #e5e7eb !important; /* Slightly darker grey for selected */
+  background-color: #e5e7eb !important; /* darker grey for selected */
   border-color: #9ca3af !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Special styling for equations */
+/* equations */
 .equation.clickable-sentence {
   display: block !important;
   padding: 6px 8px !important;
@@ -393,13 +393,13 @@
 }
 
 .equation.clickable-sentence:hover {
-  background-color: #f3f4f6 !important; /* Light grey background */
+  background-color: #f3f4f6 !important; /* grey background */
   border-color: #d1d5db !important; /* Grey border */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .equation.clickable-sentence.selected-sentence {
-  background-color: #e5e7eb !important; /* Slightly darker grey for selected */
+  background-color: #e5e7eb !important; /* darker grey for selected */
   border-color: #9ca3af !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
 }
@@ -414,13 +414,13 @@ blockquote.clickable-sentence {
 }
 
 blockquote.clickable-sentence:hover {
-  background-color: #f3f4f6 !important; /* Light grey background */
+  background-color: #f3f4f6 !important; /* grey background */
   border-color: #d1d5db !important; /* Grey border */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 blockquote.clickable-sentence.selected-sentence {
-  background-color: #e5e7eb !important; /* Slightly darker grey for selected */
+  background-color: #e5e7eb !important; /* darker grey for selected */
   border-color: #9ca3af !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
 }

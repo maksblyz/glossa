@@ -150,7 +150,7 @@ export default function FileIcon({file, onMove, onDelete}: Props) {
             {file.name}
           </span>
           
-          {/* Delete button - appears on hover underneath the filename */}
+          {/* Delete button - appear on hover */}
           {isHovered && (
             <div className="mt-1">
               <button

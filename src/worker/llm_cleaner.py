@@ -383,12 +383,11 @@ async def components_from_chunks(chunks: list[dict], images: list[dict] = None, 
 
     # Use smart chunking
     chunk_groups = smart_chunkify(text_chunks, max_chars=1200)
-    # Each group is a list of chunk dicts; convert to list of strings for prompt
+    # Each group is a list of chunk dicts - convert to list of strings for prompt
     chunk_groups_str = [[c.get("content", "") for c in group] for group in chunk_groups]
     # Build figure mapping
     figure_map = build_figure_mapping(text_chunks, images or [], tables) if images or tables else None
     
-    # Use await instead of run_until_complete
     llm_results = await process_chunks(chunk_groups_str, image_info, table_info, figure_map)
 
     # Merge and parse all results
@@ -410,7 +409,7 @@ async def components_from_chunks(chunks: list[dict], images: list[dict] = None, 
             print(f"First 200 chars: {response_text[:200]}")
             print(f"Last 200 chars: {response_text[-200:]}")
             import re
-            # Fix LaTeX escaping issues - be more aggressive
+            # Fix LaTeX escaping issues
             response_text = re.sub(r'\\(?!["\\/bfnrt])', r'\\\\', response_text)
             # Fix common LaTeX issues
             response_text = re.sub(r'\\\\\\', r'\\\\', response_text)  # Triple backslash to double

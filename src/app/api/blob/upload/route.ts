@@ -10,10 +10,9 @@ function extractOriginalFileName(pathname: string): string {
     if (!pathname) return 'Untitled PDF';
     
     // Remove the random suffix that Vercel Blob adds
-    // The format is usually: originalname-randomSuffix.pdf
     const withoutExtension = pathname.replace(/\.pdf$/i, '');
     
-    // Split by the last dash and take the first part (original name)
+    // Split by the last dash and take the first part 
     const parts = withoutExtension.split('-');
     if (parts.length > 1) {
         // Remove the last part (random suffix) and join the rest
